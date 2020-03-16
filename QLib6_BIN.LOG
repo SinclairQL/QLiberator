@@ -1,0 +1,7 @@
+8 Procedures
+WM_Rptr, WM_Outln, WM_Sptr, WM_wrsp, input_edit$, CURSEN, CURDIS, Dnr, 
+
+2 Functions
+Fwind, Tqueue, 
+
+REMark $$asmb=dos3_QLib6_BIN,0,14

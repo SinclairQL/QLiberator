@@ -1,0 +1,7 @@
+3 Procedures
+Q_ERR_ON, Q_ERR_OFF, Q_ERR_LIST, 
+
+1 Functions
+Q_ERR, 
+
+REMark $$asmb=dos3_QLibPatch2_BIN,0,10

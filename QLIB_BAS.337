@@ -1,0 +1,3468 @@
+100 REMark Decompiled QLIB_OBJ Version 3.36
+110 REMark 06/01/2020                       vars renamed 17/02/2020
+111 REMark $$asmb=flp1_QLib1_BIN,0,14
+112 REMark $$asmb=flp1_QLib2_BIN,0,14
+113 REMark $$asmb=flp1_QLib3_BIN,0,10
+114 REMark $$asmb=flp1_QLib4_BIN,0,14
+115 REMark $$asmb=flp1_QLib5_BIN,0,10
+116 REMark $$asmb=flp1_QLib6_BIN,0,14
+117 REMark $$asmb=flp1_QLib7_BIN,0,10
+118 REMark $$heap=7000
+119 REMark $$stak=5500
+120 REMark $$chan=8
+121 REMark $$buff=128
+122 REMark $$i
+126 REMark                                  New Version 3.37 started 25/02/2020
+130 main
+140 STOP
+145 :
+149 REMark $$external
+150 DEFine PROCedure QLIB (filename$)
+160   IF UNdef (filename$) THEN
+170     CMD$ = ""
+180   ELSE
+190     CMD$ = filename$
+200   END IF
+210   main
+220 END DEFine QLIB
+225 :
+230 DEFine PROCedure main
+240   QLIBversion$ = "3.37" : REMark Q_Liberator's Release date: 15/03/2020
+250   console = 3           : REMark #console  QLIB's front panel
+260   wrk = 4               : REMark #wrk  _wrk or _sav file
+270   obj = 5               : REMark #obj  the _obj file being created
+280   rpt = 6               : REMark #rpt  report console
+290   erch = 7              : REMark #erch  error channel
+295   detect_screen_limits  : REMark gets SCRXLIM, SCRYLIM
+300   helpfile$ = _HELPF
+310   max_ifs% = 32
+320   max_sels% = 32
+330   Q_ERR_ON "OPEN_NEW", "OPEN_IN", "DELETE", "OPEN", "INPUT", "CLOSE"
+340   initialise_qlist_vars
+350   QLIB_area = ALCHP(64) : POKE_L (224 + RA6 ), QLIB_area
+360   console_setup
+370   IF PE THEN
+380     WM_Sptr #console, (ww / 2), (wh / 2 + 5) : REMark Source file
+390   END IF
+400   command_string = 0
+410   IF (LEN(CMD$) <> 0) THEN
+420     command_string = 1
+430   END IF
+440   REPeat compile
+450     REPeat compile_wrk_file
+460       chans_  = _NRCHAN : REMark default number of channels
+470       buffer_ = _BUFFER : REMark default buffer length
+480       stack_  = _STACK  : REMark default stack
+490       min512  = 512
+500       heap_   = _HEAP   : REMark default heap
+510       min128  = 128
+520       IF NOT (command_string) THEN
+530         i = Interactive(1)
+540         IF (i = 2) THEN
+550           EXIT compile  : REMark Esc pressed
+560         END IF
+570       END IF
+580       console_data 2
+590       OPEN #rpt;"con_"
+600       WINDOW #rpt;348, 85, (8 + wA), (35 + wD)
+610       INK #rpt, 7
+620       CLS #rpt
+630       init_work_file_vars
+640       IF error_count THEN
+650         EXIT compile_wrk_file
+660       END IF
+670       start_time = DATE
+680       IF sav_file% THEN
+690         wrk_sav$ = ""
+700         OPEN_IN #wrk;base$
+710       ELSE
+720         wrk_sav$ = "_wrk"
+730         OPEN_IN #wrk;base$ & "_wrk"
+740         IF Q_ERR  THEN
+750           wrk_sav$ = "_sav"
+760           OPEN_IN #wrk;base$ & "_sav"
+770         END IF
+780       END IF
+790       IF Q_ERR  THEN
+800         work_file_error "On open of source file"
+810         EXIT compile_wrk_file
+820       END IF
+830       DELETE _obj$
+840       IF Q_ERR  THEN
+850         work_file_error "Deleting old object file"
+860         EXIT compile_wrk_file
+870       END IF
+880       OPEN_NEW #obj;_obj$
+890       IF Q_ERR  THEN
+900         work_file_error "On open of object file"
+910         EXIT compile_wrk_file
+920       END IF
+930       IF (_list$ & "____" INSTR "scr_con____") THEN
+940         PRINT #rpt;"Compiling ... ";base$ & wrk_sav$
+950       ELSE
+960         DELETE _list$
+970         OPEN_NEW #rpt;_list$
+980         IF Q_ERR  THEN
+990           work_file_error "On open of list device"
+1000           EXIT compile_wrk_file
+1010         END IF
+1020         PRINT #rpt;"Q_Liberator ";QLIBversion$;"  Liberation Software   "!DATE$
+1030         PRINT #rpt;\"Command line:"\CMD$\\
+1040       END IF
+1050       IF init_vars THEN
+1060         work_file_error_text 1
+1070         EXIT compile_wrk_file
+1080       END IF
+1090       REPeat each_line
+1100         IF NEXTLINE  THEN
+1110           EXIT each_line
+1120         END IF
+1130         Getsym
+1140         line_num = sym2%
+1150         IF (sym1% <> tok_line_no%) THEN
+1160           program_error 1, 1
+1170           EXIT each_line
+1180         END IF
+1190         record_line_num sym2%
+1200         Dnr #console, line_num
+1210         Stmt_num% = 1
+1220         Getsym
+1230         start_of_line
+1240         remainder_of_line
+1250       END REPeat each_line
+1260       end_time = DATE
+1270       PRINT #rpt
+1280       IF warning_count THEN
+1290         PRINT #rpt;warning_count;" warning(s)"
+1300       END IF
+1310       IF error_count THEN
+1320         PRINT #rpt;error_count;" error(s) found"
+1330         PRINT #rpt;"No object produced"
+1340       ELSE
+1350         finishing_up
+1360         PRINT #rpt;"No errors found"
+1370         PRINT #rpt;"Size of program : ";RP_ADDR , " Data area    : ";total_data
+1380         PRINT #rpt;"Highest Channel : ";(chans_ - 1),
+1390       END IF
+1400       PRINT #rpt;" Compile time : ";(end_time - start_time);" Seconds"
+1410       close_channels
+1420       clean_up
+1430       EXIT compile_wrk_file
+1440     END REPeat compile_wrk_file
+1450     close_channels
+1460     CMD$ = ""
+1470     console_colour
+1480     IF (error_count OR (command_string = 0)) THEN
+1490       CURSOR #console, 90, 123
+1500       PRINT #console;"Press  -  Space key to continue";
+1510       wait_for_a_press 0
+1520     ELSE
+1530       REMark FOR i = 1.1 TO 20000
+1540       REMark END FOR i
+1550     END IF
+1560     IF command_string THEN
+1570       EXIT compile
+1580     END IF
+1590   END REPeat compile
+1600   IF NOT (command_string) THEN
+1610     do_qlib_use
+1620   END IF
+1625   RECHP QLIB_area
+1630   console_clear
+1640 END DEFine main
+1645 :
+1650 DEFine PROCedure work_file_error (textual$)
+1660   work_file_error_text Q_ERR
+1670   PRINT #rpt;textual$
+1680 END DEFine work_file_error
+1685 :
+1690 DEFine PROCedure init_work_file_vars
+1700   _run% = 0
+1720   _noline = 1
+1730   _nodis% = 1
+1740   base$ = ""
+1750   _obj$ = ""
+1760   _list$ = ""
+1770   _stat% = 0
+1780   integer_mode% = 0
+1790   _nonames% = 1
+1800   _autof% = 0
+1810   _debug% = 0
+1820   _nobeep% = 1
+1830   _nowinds% = 0
+1840   _trace% = 0
+1850   option$ = "02-NOLINE,03-STAT,04-NODIS,05-NONAMES,06-AUTOF,07-RUN,08-DEBUG,09-NOBEEP,10-NOWINDS,11-TRACE,20-OBJ,21-LIST,23-NAME,"
+1860   error_count = 0
+1870   LEN_of_CMDs = LEN(CMD$)
+1880   opt_ptr = 0
+1890   pick_an_opt
+1900   IF (opt$ = "") THEN
+1910     option_error 1
+1920     RETurn
+1930   END IF
+1940   IF (opt$(1) = "-") THEN
+1950     option_error 1
+1960     RETurn
+1970   END IF
+1980   base$ = opt$
+1990   full_names base$, _obj$, _name$
+2000   REPeat vars_lp
+2010     pick_an_opt
+2020     IF (opt$ = "") THEN
+2030       EXIT vars_lp
+2040     END IF
+2050     IF (opt$(1) <> "-") THEN
+2060       option_error 2
+2070       EXIT vars_lp
+2080     END IF
+2090     op = (opt$ & "," INSTR option$)
+2100     IF (op = 0) THEN
+2110       option_error 4
+2120       EXIT vars_lp
+2130     ELSE
+2140       op = option$((op - 2) TO (op - 1))
+2150     END IF
+2160     IF (op > 19) THEN
+2170       pick_an_opt
+2180       IF (opt$ = "") THEN
+2190         option_error 3
+2200         EXIT vars_lp
+2210       ELSE
+2220         IF (opt$(1) = "-") THEN
+2230           option_error 3
+2240           EXIT vars_lp
+2250         END IF
+2260       END IF
+2270     END IF
+2280     SELect ON op
+2290     ON op =  2 : _noline = 0
+2300     ON op =  3 : _stat% = 1
+2310     ON op =  4 : _nodis% = 0
+2320     ON op =  5 : _nonames% = 0
+2330     ON op =  6 : _autof% = 1
+2340     ON op =  7 : _run% = 1
+2350     ON op =  8 : _debug%  = 1
+2360     ON op =  9 : _nobeep% = 0
+2370     ON op = 10 : _nowinds% = 255
+2380     ON op = 11 : _trace% = 1
+2390     ON op = 20 : _obj$  = opt$ & "_obj"
+2400     ON op = 21 : _list$ = opt$
+2410     ON op = 23 : _name$ = opt$
+2420     END SELect
+2430   END REPeat vars_lp
+2440 END DEFine init_work_file_vars
+2445 :
+2450 DEFine PROCedure full_names (base$, _obj$, _name$)
+2460   _obj$ = base$
+2470   _name$ = base$
+2480   L = LEN(base$)
+2490   sav_file% = 0
+2500   IF (L > 4) THEN
+2510     IF (base$((L - 3) TO L) == "_sav") THEN
+2520       sav_file% = 1
+2530       _obj$ = base$(1 TO (L - 4))
+2540       _name$ = _obj$
+2550     END IF
+2560   END IF
+2570   _obj$ = _obj$ & "_obj"
+2580   IF (LEN(_name$) > 5) THEN
+2590     IF (_name$(5) = "_") THEN
+2600       _name$ = _name$(6 TO LEN(_name$))
+2610     END IF
+2620   END IF
+2630 END DEFine full_names
+2635 :
+2640 DEFine PROCedure option_error (er)
+2650   error_count = 1
+2660   PRINT #rpt;"Error in command string"
+2670   PRINT #rpt;CMD$
+2680   PRINT #rpt; TO optr;CHR$(190)
+2690   SELect ON er
+2700   ON er = 1 : PRINT #rpt;"No source file"
+2710   ON er = 2 : PRINT #rpt;"Option name expected"
+2720   ON er = 3 : PRINT #rpt;"Parameter expected"
+2730   ON er = 4 : PRINT #rpt;"Invalid option"
+2740   END SELect
+2750 END DEFine option_error
+2755 :
+2760 DEFine PROCedure pick_an_opt
+2770 LOCal i
+2780 LOCal target
+2790   opt$ = ""
+2800   optr = opt_ptr
+2810   FOR i = (opt_ptr + 1) TO LEN_of_CMDs
+2820     IF (CMD$(i) <> " ") THEN
+2830       EXIT i
+2840     END IF
+2850   END FOR i
+2860   IF ((i > LEN_of_CMDs) OR (i = 0)) THEN
+2870     RETurn
+2880   END IF
+2890   target = (" " INSTR CMD$(i TO  ))
+2900   IF (target = 0) THEN
+2910     opt_ptr = (LEN_of_CMDs + 1)
+2920     opt$ = CMD$(i TO  )
+2930   ELSE
+2940     opt_ptr = ((i + target) - 1)
+2950     opt$ = CMD$(i TO (opt_ptr - 1))
+2960   END IF
+2970 END DEFine pick_an_opt
+2975 :
+2980 DEFine PROCedure remainder_of_line
+2990   REPeat statements
+3000     ON sym1% GO TO 3020, 3210, 3090, 3020, 3020, 3050, 3020, 3020, 3020, 3020, 3020
+3010     :
+3020     program_error 1, 2
+3030     GO TO 4050
+3040     :
+3050     statement_separation
+3060     Parse_Name_Stmt
+3070     GO TO 4050
+3080     :
+3090     ON sym2% GO TO 3140, 3180, 3110, 3110, 3110, 3110, 3110, 3110, 3110, 3180
+3100     :
+3110     program_error 1, 2
+3120     GO TO 4050
+3130     :
+3140     statement_separation
+3150     Select_Instance
+3160     GO TO 4050
+3170     :
+3180     Stmt_num% = (Stmt_num% - 1)
+3190     GO TO 4050
+3195     EXIT statements
+3200     :
+3210     statement_separation
+3220     ON sym2% GO TO 3260, 3290, 3320, 3350, 3380, 3410, 3440, 3470, 3490, 3510, 3540, 3560, 3580, 3600, 3620, 3640, 3660, 3690, 3720, 3750, 3780, 3810, 3840, 3860, 3890, 3920, 3950, 3980, 4000, 4020
+3230     program_error 1, 3
+3240     GO TO 4050
+3250     :
+3260     Parse_key_End     : REMark  1 END
+3270     GO TO 4050
+3280     :
+3290     Parse_key_For     : REMark  2 FOR
+3300     GO TO 4050
+3310     :
+3320     Parse_key_If      : REMark  3 IF
+3330     GO TO 4050
+3340     :
+3350     Parse_key_Repeat  : REMark  4 REPeat
+3360     GO TO 4050
+3370     :
+3380     Parse_key_Select  : REMark  5 SELect
+3390     GO TO 4050
+3400     :
+3410     Parse_key_When    : REMark  6 WHEN
+3420     GO TO 4050
+3430     :
+3440     Parse_key_Define  : REMark  7 DEFine
+3450     GO TO 4050
+3460     :
+3470     GO TO 3230        : REMark  8 PROCedure
+3480     :
+3490     GO TO 3230        : REMark  9 FuNction
+3500     :
+3510     Parse_key_Go      : REMark 10 GO
+3520     GO TO 4050
+3530     :
+3540     GO TO 3230        : REMark 11 TO
+3550     :
+3560     GO TO 3230        : REMark 12 SUB
+3570     :
+3580     GO TO 3230        : REMark 13 ?
+3590     :
+3600     GO TO 3230        : REMark 14 ERRor
+3610     :
+3620     GO TO 3230        : REMark 15 ?
+3630     :
+3640     GO TO 3230        : REMark 16 ?
+3650     :
+3660     Parse_key_Restore : REMark 17 RESTORE
+3670     GO TO 4050
+3680     :
+3690     Parse_key_Next    : REMark 18 NEXT
+3700     GO TO 4050
+3710     :
+3720     Parse_key_Exit    : REMark 19 EXIT
+3730     GO TO 4050
+3740     :
+3750     Parse_key_Else    : REMark 20 ELSE
+3760     GO TO 4050
+3770     :
+3780     Parse_key_On      : REMark 21 ON
+3790     GO TO 4050
+3800     :
+3810     Parse_key_Return  : REMark 22 RETurn
+3820     GO TO 4050
+3830     :
+3840     GO TO 3230        : REMark 23 REMAINDER
+3850     :
+3860     Parse_key_Data    : REMark 24 DATA
+3870     GO TO 4050
+3880     :
+3890     Parse_key_Dim     : REMark 25 DIM
+3900     GO TO 4050
+3910     :
+3920     Parse_key_Local   : REMark 26 LOCal
+3930     GO TO 4050
+3940     :
+3950     Parse_key_Let     : REMark 27 LET
+3960     GO TO 4050
+3970     :
+3980     GO TO 3230        : REMark 28 THEN
+3990     :
+4000     GO TO 3230        : REMark 29 STEP
+4010     :
+4020     Parse_key_Remark  : REMark 30 REMark               31 MISTake
+4030     GO TO 4050
+4040     :
+4050     IF End_of_Line% THEN
+4060       EXIT statements
+4070     END IF
+4080     Stmt_num% = (Stmt_num% + 1)
+4090     Getsym
+4100   END REPeat statements
+4110 END DEFine remainder_of_line
+4115 :
+4120 DEFine PROCedure statement_separation
+4130   IF NOT (_trace%) THEN
+4140     RETurn
+4150   END IF
+4160   IF NOT (started%) THEN
+4170     GENop 3
+4180     stmt_adr = (stmt_adr + 1)
+4190   END IF
+4200   started% = 0
+4210 END DEFine statement_separation
+4215 :
+4220 DEFine PROCedure start_of_line
+4230   IF NOT (_trace%) THEN
+4240     RETurn
+4250   END IF    : REMark 2 = keyword%    30 = Remark       3 = symbol%     2 = ":"
+4260   IF NOT ((((sym1% = 2) AND (sym2% = 30)) OR ((sym1% = 3) AND (sym2% = 2))))THEN
+4270     GENop 4
+4280     stmt_adr = (stmt_adr + 1)
+4290   END IF
+4300   started% = 1
+4310 END DEFine start_of_line
+4315 :
+4320 DEFine PROCedure Parse_key_End
+4330   Getsym
+4340   ON sym2% GO TO 4360, 4380, 4410, 4440, 4470, 4500, 4530
+4350   :
+4360   RETurn
+4370   :
+4380   End_For_name     : REMark 2 FOR
+4390   RETurn
+4400   :
+4410   Gen_End_If       : REMark 3 IF
+4420   RETurn
+4430   :
+4440   End_Repeat_name  : REMark 4 REPeat
+4450   RETurn
+4460   :
+4470   Gen_End_Select   : REMark 5 SELect
+4480   RETurn
+4490   :
+4500   Gen_End_When     : REMark 6 WHEN
+4510   RETurn
+4520   :
+4530   Gen_End_Define   : REMark 7 DEFine
+4540   RETurn
+4550   :
+4560 END DEFine Parse_key_End
+4565 :
+4570 DEFine PROCedure End_For_name
+4580   Getsym
+4590   Gen_End_For
+4600 END DEFine End_For_name
+4605 :
+4610 DEFine PROCedure Gen_End_For
+4620   GENop 81
+4630   GENntd sym3
+4640   Gen_L (struct_base% + 1), 0
+4650   FOR i = 1 TO (FOR_ranges% - 1)
+4660     Gen_L ((struct_base% + 3) + i), 0
+4670   END FOR i
+4680   GENW 0, 4
+4690   IF (p3% = 0) THEN
+4700     p3% = 1
+4710     pack
+4720     WNAME name_adr(sym3), p0%, struct_base%, FOR_ranges%
+4730     Gen_struct (struct_base% + 2)
+4740   END IF
+4750 END DEFine Gen_End_For
+4755 :
+4760 DEFine PROCedure Gen_End_If
+4770   IF (ifs_level% > 0) THEN
+4780     IF ((In_Defn >= 0) AND (ifs_level% = ifs_ptr)) THEN
+4790       program_error_text 0, 5
+4800     ELSE
+4810       Gen_struct ifs_stack%(ifs_level%)
+4820       ifs_level% = (ifs_level% - 1)
+4830     END IF
+4840   ELSE
+4850     program_error 0, 5
+4860   END IF
+4870 END DEFine Gen_End_If
+4875 :
+4880 DEFine PROCedure End_Repeat_name
+4890   Getsym
+4900   Gen_End_Repeat sym3
+4910 END DEFine End_Repeat_name
+4915 :
+4920 DEFine PROCedure Gen_End_Repeat (err_num)
+4930   repeater = (repeater - 1)
+4940   RNAME name_adr(err_num), p0%, struct_base%
+4950   unpack
+4960   GENop 101
+4970   Gen_L struct_base%, 1
+4980   Gen_struct (struct_base% + 2)
+4990   p3% = 1
+5000   pack
+5010   WNAME name_adr(err_num), p0%, struct_base%
+5020 END DEFine Gen_End_Repeat
+5025 :
+5030 DEFine PROCedure Gen_End_Select
+5040   IF (sels_level% = 0) THEN
+5050     program_error 1, 9
+5060   ELSE
+5070     Gen_struct sels_stack%(1, sels_level%)
+5080     Gen_struct sels_stack%(0, sels_level%)
+5090     sels_level% = (sels_level% - 1)
+5100   END IF
+5110 END DEFine Gen_End_Select
+5115 :
+5120 DEFine PROCedure Gen_End_When
+5130   IF (when_ptr% = 0) THEN
+5140     program_error 1, 26
+5150     RETurn
+5160   END IF
+5170   IF (when_state% = 3) THEN
+5180     when_ptr% = 0
+5190     RETurn
+5200   END IF
+5210   IF (when_state% = 1) THEN
+5220     GENop 69
+5230     GENW 0
+5240     GENop 90
+5250   ELSE
+5260     GENop 47
+5270     Gen_struct (when_ptr% + 1)
+5280     GENop 111
+5290   END IF
+5300   Gen_struct when_ptr%
+5310   when_ptr% = 0
+5320 END DEFine Gen_End_When
+5325 :
+5330 DEFine PROCedure Gen_End_Define
+5340   IF (In_Defn < 0) THEN
+5350     program_error_text 1, 20
+5360   ELSE
+5370     IF (ifs_ptr < ifs_level%) THEN
+5380       program_error_text 0, 18
+5390       GENop 47
+5400     ELSE
+5410       close_structs
+5420     END IF
+5430   END IF
+5440   Skip_Stmt
+5450 END DEFine Gen_End_Define
+5455 :
+5460 DEFine PROCedure close_structs
+5470   IF (ifs_ptr < ifs_level%) THEN
+5480     program_error_text 0, 11
+5490     REPeat loop
+5500       IF (ifs_ptr = ifs_level%) THEN
+5510         EXIT loop
+5520       END IF
+5530       Gen_End_If
+5540     END REPeat loop
+5550   END IF
+5560   IF (start_sels_level <> sels_level%) THEN
+5570     program_error_text 1, 12 : END IF
+5580   IF (repeater > 0) THEN
+5590     program_error_text 1, 13
+5600   END IF
+5610   IF ((In_Defn >= 0) AND (p2_value = 5)) THEN
+5620     GENop 46
+5630     GENB 2
+5640   ELSE
+5650     GENop 47
+5660   END IF
+5670   RNAME name_adr(In_Defn), p0%, struct_base%
+5680   Gen_struct (struct_base% + 1)
+5690   In_Defn = -1
+5700 END DEFine close_structs
+5705 :
+5710 DEFine PROCedure Parse_key_For
+5720 LOCal err_num
+5730 LOCal For_struct3
+5740 LOCal FOR_struct1
+5750 LOCal ranges
+5760 LOCal i
+5770 LOCal prev_im%
+5780 LOCal p9_value%
+5790   Getsym
+5800   err_num = sym3
+5810   p9_value% = p9%
+5820   Getsym
+5830   For_struct3 = current_struct_ptr(3)
+5840   GENop 79
+5850   GENntd err_num
+5860   ranges = 0
+5870   FOR_struct1 = current_struct_ptr(1)
+5880   Gen_struct FOR_struct1
+5890   prev_im% = integer_mode%
+5900   integer_mode% = 1
+5910   REPeat range
+5920     expr                       : REMark 4 = ","
+5930     IF ((sym1% = symbol%) AND ((sym2% = 4) OR End_of_Stmt%)) THEN
+5940       GENop 11
+5950       GENop 69
+5960       GENint 1
+5970     ELSE
+5980       IF ((sym1% = keyword%) AND (sym2% = 11)) THEN
+5990         expr                     : REMark 11 = "TO"
+6000         IF ((sym1% = keyword%) AND (sym2% = 29)) THEN
+6010           expr                     : REMark 29 = "STEP"
+6020         ELSE
+6030           GENop 69
+6040           GENint 1
+6050         END IF
+6060       ELSE
+6070         EXIT range
+6080       END IF
+6090     END IF
+6100     ranges = (ranges + 1)
+6105     skip_Top_Line_Remark
+6110     IF End_of_Stmt% THEN
+6120       EXIT range
+6130     END IF
+6140     GENop 101
+6150     Gen_L For_struct3, 1
+6160     Gen_struct current_struct_ptr(1)
+6170   END REPeat range
+6180   integer_mode% = prev_im%
+6190   Gen_struct For_struct3
+6200   GENop 82
+6210   GENntd err_num
+6220   Gen_L (For_struct3 + 1), 0
+6230   IF (ranges = 1) THEN
+6240     Gen_L (For_struct3 + 2), 0
+6250   ELSE
+6260     FOR i = 1 TO (ranges - 1)
+6270       Gen_L (FOR_struct1 + i), 0
+6280     END FOR i
+6290     GENW 0
+6300     GENW 4
+6310     GENop 80
+6320     GENntd err_num
+6330     Gen_L (For_struct3 + 2), 0
+6340   END IF
+6350   Gen_struct (For_struct3 + 1)
+6360   RNAME name_adr(err_num), p0%
+6370   unpack
+6380   p6% = 0
+6390   struct_base% = For_struct3
+6400   FOR_ranges% = ranges
+6410   p3% = 0
+6420   pack
+6430   WNAME name_adr(err_num), p0%, struct_base%, FOR_ranges%
+6440   IF p9_value% THEN
+6450     GENop 113
+6460     GENntd err_num
+6470   END IF              : REMark 2 is either keyword "FOR"  or  symbol ":"
+6480   IF (sym2% = 2) THEN
+6490     remainder_of_line
+6500     sym3 = err_num
+6510     RNAME name_adr(err_num), p0%, struct_base%, FOR_ranges%
+6520     unpack
+6530     IF (p3% = 0) THEN
+6540       Gen_End_For
+6550     END IF
+6560   END IF
+6570 END DEFine Parse_key_For
+6575 :
+6580 DEFine PROCedure Parse_key_If
+6590 LOCal ifl%
+6600   IF (ifs_level% = max_ifs%) THEN
+6610     program_error 1, 4
+6620     RETurn
+6630   END IF
+6640   ifs_level% = (ifs_level% + 1)
+6650   ifs_stack%(ifs_level%) = current_struct_ptr(1)
+6660   expr
+6670   GENop 102
+6680   Gen_L ifs_stack%(ifs_level%), 1
+6690   IF ((sym1% = keyword%) AND (sym2% = 28)) THEN
+6700     Getsym                   : REMark 28 = "THEN"
+6710   END IF
+6720   IF ((sym1% = symbol%) AND (sym2% = 2)) THEN
+6730     Getsym                  : REMark 2 = ":"
+6740   END IF
+6745   skip_Top_Line_Remark
+6750   IF End_of_Line% THEN
+6760     RETurn
+6770   END IF
+6780   ifl% = ifs_level%
+6790   remainder_of_line
+6800   IF (ifl% = ifs_level%) THEN
+6810     Gen_End_If
+6820   END IF
+6830 END DEFine Parse_key_If
+6835 :
+6840 DEFine PROCedure Parse_key_Repeat
+6850 LOCal err_num
+6860   repeater = (repeater + 1)
+6870   Getsym
+6880   err_num = sym3
+6890   struct_base% = current_struct_ptr(3)
+6900   p3% = 0
+6910   p6% = 1
+6920   pack
+6930   WNAME name_adr(sym3), p0%, struct_base%
+6940   GENop 69
+6950   GENW 0
+6960   GENop 66
+6970   GENntd sym3
+6980   Gen_struct struct_base%
+6990   Getsym
+6995   skip_Top_Line_Remark
+7000   IF End_of_Line% THEN
+7010     RETurn
+7020   END IF
+7030   remainder_of_line
+7040   RNAME name_adr(err_num), p0%
+7050   unpack
+7060   IF (p3% = 0) THEN
+7070     Gen_End_Repeat err_num
+7080   END IF
+7090 END DEFine Parse_key_Repeat
+7095 :
+7100 DEFine PROCedure Parse_key_Select
+7110 LOCal ssptr
+7120 LOCal slevel
+7130   Getsym : REMark could be .. "ON"
+7140   IF (sym1% <> name%) THEN
+7150     Getsym
+7160   END IF
+7170   IF (sels_level% < max_sels%) THEN
+7180     sels_level% = (sels_level% + 1)
+7190   ELSE
+7200     program_error 1, 7
+7210     RETurn
+7220   END IF
+7230   ssptr = current_struct_ptr(2)
+7240   sels_stack%(0, sels_level%) = ssptr
+7250   sels_stack%(1, sels_level%) = (ssptr + 1)
+7260   sels_stack%(2, sels_level%) = sym3
+7270   Getsym
+7280   GENop 101
+7290   Gen_L (ssptr + 1), 1
+7295   skip_Top_Line_Remark
+7300   IF End_of_Line% THEN
+7310     RETurn
+7320   END IF
+7330   REPeat sels_range
+7340     IF (sym1% = symbol%) THEN
+7350       IF (sym2% = 1) THEN
+7360         EXIT sels_range      : REMark 1 = "="
+7370       END IF
+7380       IF End_of_Line% THEN
+7390         RETurn
+7400       END IF
+7410     END IF
+7420     Getsym
+7430   END REPeat sels_range
+7440   slevel = sels_level%
+7450   Select_Instance
+7460   remainder_of_line
+7470   IF (slevel = sels_level%) THEN
+7480     Gen_End_Select
+7490   END IF
+7500 END DEFine Parse_key_Select
+7505 :
+7510 DEFine PROCedure Parse_key_When
+7520 LOCal here
+7530 LOCal loop
+7540 LOCal bytes
+7550   IF (when_ptr% <> 0) THEN
+7560     program_error 1, 25
+7570     RETurn
+7580   END IF
+7590   here = LPOS
+7600   Getsym                     : REMark 14 = "ERRor"
+7610   IF ((sym1% = keyword%) AND (sym2% = 14)) THEN
+7620     when_state% = 1
+7630     when_ptr% = current_struct_ptr(1)
+7640     GENop 74
+7650     Gen_L when_ptr%
+7660   ELSE
+7670     when_state% = 2
+7680     when_ptr% = current_struct_ptr(2)
+7690     Getsym
+7700     bytes = sym3
+7710     IF End_of_Stmt% THEN
+7720       GENop 112
+7730       GENntd bytes
+7740       when_state% = 3
+7750     ELSE
+7760       GENop 109
+7770       Gen_L when_ptr%, 1
+7780       GENntd bytes
+7790       LSET_POS here
+7800       expr
+7810       GENop 102
+7820       Gen_L (when_ptr% + 1), 1
+7830     END IF
+7840   END IF
+7850   Skip_Stmt
+7855   skip_Top_Line_Remark
+7860   IF (End_of_Stmt% AND NOT (End_of_Line%)) THEN
+7870     remainder_of_line
+7880     IF when_ptr% THEN
+7890       Gen_End_When
+7900     END IF
+7910   END IF
+7920 END DEFine Parse_key_When
+7925 :
+7930 DEFine PROCedure Parse_key_Define
+7940 LOCal params
+7950 LOCal here
+7960 LOCal i
+7970   IF (In_Defn >= 0) THEN
+7980     program_error_text 0, 19
+7990     close_structs
+8000   END IF
+8010   Getsym
+8020   Getsym
+8030   IF (external_one% OR external_all%) THEN
+8040     p7% = 1
+8050     p4% = 1
+8060     pack
+8070     ext_count% = (ext_count% + 1)
+8080     WNAME name_adr(sym3), p0%
+8090     external_one% = 0
+8100   END IF
+8110   params = 0
+8120   GENop 101
+8130   Gen_L (struct_base% + 1), 1
+8140   Gen_struct struct_base%
+8150   In_Defn = sym3
+8160   p2_value = p2%
+8170   ifs_ptr = ifs_level%
+8180   start_sels_level = sels_level%
+8190   repeater = 0
+8200   Getsym                    : REMark 5 = (
+8210   IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+8220     here = LPOS
+8230     REPeat formal_parameters
+8240       Getsym
+8250       ambiguous_name_check
+8260       params = (params + 1)
+8270       Getsym
+8280       IF (sym2% = 6) THEN
+8290         EXIT formal_parameters    : REMark 6 = symbol ")"
+8300       END IF
+8310     END REPeat formal_parameters
+8320     LSET_POS here
+8330   END IF
+8340   GENop 59
+8350   GENB params
+8360   FOR i = 1 TO params
+8370     Getsym
+8380     GENntd sym3
+8390     Getsym
+8400   END FOR i
+8410 END DEFine Parse_key_Define
+8415 :
+8420 DEFine PROCedure Parse_key_Go
+8430 LOCal case%
+8440 LOCal here
+8450   Getsym
+8460   case% = sym2%
+8470   here = LPOS
+8480   Getsym
+8490   IF (sym1% >= float%) THEN
+8500     Getsym
+8510     IF End_of_Stmt% THEN
+8520       IF (case% = 11) THEN
+8530         GENop 101              : REMark 11 = "TO"
+8540         Gen_L_sym3 sym3, 1
+8550       ELSE
+8560         GENop 83
+8570         Gen_L_sym3 sym3, 0
+8580       END IF
+8590       RETurn
+8600     END IF
+8610   END IF
+8620   LSET_POS here
+8630   expr
+8640   IF (case% = 11) THEN
+8650     GENop 99                   : REMark 11 = "TO"
+8660   ELSE
+8670     GENop 98
+8680   END IF
+8690   _noline = 1
+8700 END DEFine Parse_key_Go
+8705 :
+8710 DEFine PROCedure Parse_key_Restore
+8720 LOCal sym3_value
+8730 LOCal here
+8740   here = LPOS
+8750   Getsym
+8760   IF (sym1% >= float%) THEN
+8770     sym3_value = sym3
+8780     Getsym
+8790     IF End_of_Stmt% THEN
+8800       GENop 84
+8810       Gen_L_data sym3_value, 0
+8820       RETurn
+8830     END IF
+8840   ELSE
+8850     IF End_of_Stmt% THEN
+8860       GENop 84
+8870       Gen_L_data 1, 0
+8880       RETurn
+8890     END IF
+8900   END IF
+8910   LSET_POS here
+8920   _noline = 1
+8930   expr
+8940   GENop 97
+8950 END DEFine Parse_key_Restore
+8955 :
+8960 DEFine PROCedure Parse_key_Next
+8970   Getsym
+8980   IF p6% THEN
+8990     GENop 101
+9000     Gen_L struct_base%, 1
+9010   ELSE
+9020     GENop 81
+9030     GENntd sym3
+9040     Gen_L (struct_base% + 1), 0
+9050     FOR i = 1 TO (FOR_ranges% - 1)
+9060       Gen_L ((struct_base% + 3) + i), 0
+9070     END FOR i
+9080     GENW 0
+9090     GENW 4
+9100   END IF
+9110 END DEFine Parse_key_Next
+9115 :
+9120 DEFine PROCedure Parse_key_Exit
+9130   Getsym
+9140   GENop 101
+9150   Gen_L (struct_base% + 2), 1
+9160 END DEFine Parse_key_Exit
+9165 :
+9170 DEFine PROCedure Parse_key_Else
+9180 LOCal start
+9190   IF (ifs_level% > 0) THEN
+9200     start = ifs_stack%(ifs_level%)
+9210     ifs_stack%(ifs_level%) = current_struct_ptr(1)
+9220     GENop 101
+9230     Gen_L ifs_stack%(ifs_level%), 1
+9240     Gen_struct start
+9250   ELSE
+9260     program_error 1, 6
+9270   END IF
+9280 END DEFine Parse_key_Else
+9285 :
+9290 DEFine PROCedure Parse_key_On
+9300 LOCal here
+9310 LOCal is_TO
+9320 LOCal On_Go_ptr : REMark 1 and upwards
+9330 LOCal on_sptr
+9340 LOCal i
+9350 LOCal sym3_value
+9360   here = LPOS
+9370   Getsym
+9380   IF (sym1% = name%) THEN
+9390     Getsym                    : REMark 1 = "="
+9400     IF ((sym1% = symbol%) AND (sym2% = 1)) THEN
+9410       Select_Instance
+9420       RETurn
+9430     END IF
+9440   END IF
+9450   LSET_POS here
+9460   expr
+9470   Getsym
+9480   is_TO = sym2%
+9490   here = LPOS
+9500   On_Go_ptr = 1
+9510   REPeat On_Go
+9520     Getsym
+9530     IF (sym1% = symbol%) THEN
+9540       IF End_of_Stmt% THEN
+9550         EXIT On_Go
+9560       END IF
+9570       IF (sym2% = 4) THEN
+9580         On_Go_ptr = (On_Go_ptr + 1) : REMark 4 = ","
+9590       END IF
+9600     END IF
+9610   END REPeat On_Go
+9620   on_sptr = current_struct_ptr((On_Go_ptr + 1))
+9630   GENop 85
+9640   GENW On_Go_ptr
+9650   Gen_L on_sptr, 0
+9660   FOR i = 1 TO On_Go_ptr
+9670     Gen_L (on_sptr + i), 0
+9680   END FOR i
+9690   LSET_POS here
+9700   FOR i = 1 TO On_Go_ptr
+9710     Gen_struct (on_sptr + i)
+9720     here = LPOS
+9730     Getsym
+9740     IF (sym1% >= float%) THEN
+9750       sym3_value = sym3
+9760       Getsym                                     : REMark 4 = ","
+9770       IF ((sym1% = symbol%) AND (End_of_Stmt% OR (sym2% = 4))) THEN
+9780         IF (is_TO = 11) THEN
+9790           GENop 101            : REMark 11 = "TO"
+9800           Gen_L_sym3 sym3_value, 1
+9810         ELSE
+9820           GENop 83
+9830           Gen_L_sym3 sym3_value, 0
+9840           GENop 101
+9850           Gen_L on_sptr, 1
+9860         END IF
+9870       ELSE
+9880         Gen_key_On
+9890       END IF
+9900     ELSE
+9910       Gen_key_On
+9920     END IF
+9930   END FOR i
+9940   Gen_struct on_sptr
+9950 END DEFine Parse_key_On
+9955 :
+9960 DEFine PROCedure Gen_key_On
+9970   _noline = 1
+9980   LSET_POS here
+9990   expr
+10000   IF (is_TO = 11) THEN
+10010     GENop 99             : REMark 11 = "TO"
+10020   ELSE
+10030     GENop 98
+10040     GENop 101
+10050     Gen_L on_sptr, 1
+10060   END IF
+10070 END DEFine Gen_key_On
+10075 :
+10080 DEFine PROCedure Parse_key_Return
+10090   IF ((In_Defn >= 0) AND (p2_value = 5)) THEN
+10100     expr
+10110     GENop 48
+10120   ELSE
+10130     GENop 47
+10140   END IF
+10150   Skip_Stmt
+10160 END DEFine Parse_key_Return
+10165 :
+10170 DEFine PROCedure Parse_key_Data
+10180 LOCal start
+10190   start = current_struct_ptr(2)
+10200   GENop 101
+10210   Gen_L start, 1
+10220   Gen_a_symbol data_adr, line_num, RP_ADDR
+10230   Gen_struct data_struct
+10240   data_struct = (start + 1)
+10250   REPeat data_lp
+10260     expr
+10270     GENop 96
+10280     IF End_of_Stmt% THEN
+10290       EXIT data_lp
+10300     END IF
+10310   END REPeat data_lp
+10320   GENop 101
+10330   Gen_L (start + 1), 1
+10340   Gen_struct start
+10350 END DEFine Parse_key_Data
+10355 :
+10360 DEFine PROCedure Parse_key_Dim
+10370   REPeat scan
+10380     local_dim 0
+10390     Getsym                         : REMark 4 = ","
+10400     IF NOT (((sym1% = symbol%) AND (sym2% = 4))) THEN
+10410       EXIT scan
+10420     END IF
+10430   END REPeat scan
+10440 END DEFine Parse_key_Dim
+10445 :
+10450 DEFine PROCedure local_dim (islocal)
+10460 LOCal err_num
+10470 LOCal ndims
+10480 LOCal case%
+10490   ndims = 0
+10500   Getsym
+10510   err_num = sym3
+10520   case% = p1%
+10530   Getsym
+10540   REPeat count_ndims
+10550     expr
+10560     ndims = (ndims + 1)       : REMark 6 = ")"
+10570     IF ((sym1% = symbol%) AND (sym2% = 6)) THEN
+10580       EXIT count_ndims
+10590     END IF
+10600   END REPeat count_ndims
+10610   IF (islocal = 0) THEN
+10620     ON case% GO TO 10640, 10680, 10720
+10630     :
+10640     GENop 55
+10650     GENB ndims
+10660     GO TO 10750
+10670     :
+10680     GENop 53
+10690     GENB ndims
+10700     GO TO 10750
+10710     :
+10720     GENop 54
+10730     GENB ndims
+10740     :
+10750   ELSE
+10760     ON case% GO TO 10780, 10820, 10860
+10770     :
+10780     GENop 58
+10790     GENB ndims
+10800     GO TO 10900
+10810     :
+10820     GENop 56
+10830     GENB ndims
+10840     GO TO 10900
+10850     :
+10860     GENop 57
+10870     GENB ndims
+10880     :
+10890   END IF
+10900   GENntd err_num
+10910 END DEFine local_dim
+10915 :
+10920 DEFine PROCedure Parse_key_Local
+10930 LOCal here
+10940 LOCal err_num
+10950 LOCal case%
+10960   REPeat scan
+10970     here = LPOS
+10980     Getsym
+10990     err_num = sym3
+11000     case% = p1%
+11010     ambiguous_name_check
+11020     Getsym                    : REMark 5 = "("
+11030     IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+11040       LSET_POS here
+11050       local_dim 1
+11060       Getsym
+11070     ELSE
+11080       ON case% GO TO 11100, 11130, 11160
+11090       :
+11100       GENop 78
+11110       GO TO 11170
+11120       :
+11130       GENop 76
+11140       GO TO 11170
+11150       :
+11160       GENop 77
+11170       GENntd err_num
+11180       :
+11190     END IF                         : REMark 4 = ","
+11200     IF NOT (((sym1% = symbol%) AND (sym2% = 4))) THEN
+11210       EXIT scan
+11220     END IF
+11230   END REPeat scan
+11240 END DEFine Parse_key_Local
+11245 :
+11250 DEFine PROCedure ambiguous_name_check
+11260   IF (p2% > 3) THEN
+11270     IF ((p2% <> 6) AND (p2% <> 7)) THEN
+11280       program_error_text 1, 8
+11290     END IF
+11300   END IF
+11310 END DEFine ambiguous_name_check
+11315 :
+11320 DEFine PROCedure Parse_key_Let
+11330   Getsym
+11340   Parse_Assignment_Stmt
+11350 END DEFine Parse_key_Let
+11355 :
+11360 DEFine PROCedure Parse_Assignment_Stmt
+11370 LOCal err_num
+11380 LOCal assn_p5%
+11390 LOCal assn_p1%
+11400 LOCal assn_p9%
+11410 LOCal here
+11420   err_num = sym3
+11430   assn_p1% = p1%
+11440   assn_p5% = p5%
+11450   assn_p9% = p9%
+11460   here = LPOS
+11470   REPeat wait_for_equals
+11480     Getsym
+11490     IF (sym1% = symbol%) THEN
+11500       IF (sym2% = 1) THEN
+11510         EXIT wait_for_equals : REMark 1 = "="
+11520       END IF
+11530       IF End_of_Stmt% THEN
+11540         program_error 1, 8
+11550         RETurn
+11560       END IF
+11570     END IF
+11580   END REPeat wait_for_equals
+11590   expr
+11600   LSET_POS here
+11610   Genop_Symbol 1, err_num, assn_p5%, assn_p1%, assn_p9%
+11620   Skip_Stmt
+11630 END DEFine Parse_Assignment_Stmt
+11635 :
+11640 DEFine PROCedure Genop_Symbol (flag, err_num, pp5%, pp1%, assn_p9%)
+11650 LOCal dims
+11660 LOCal prev_sym3
+11670 LOCal here
+11680 LOCal another_bracket
+11690   prev_sym3 = err_num
+11700   Getsym                    : REMark 5 = "("
+11710   IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+11720     dims = 0
+11730     here = LPOS
+11740     another_bracket = Skip_to_List_End
+11750     LSET_POS here
+11760     IF another_bracket THEN
+11770       IF (flag = 0) THEN
+11780         dims = dims_count
+11790         GENop 63
+11800         GENB dims
+11810         GENntd prev_sym3
+11820       ELSE
+11830         dims = dims_count
+11840         GENop 52
+11850         GENB dims
+11860         GENntd prev_sym3
+11870       END IF
+11880     ELSE
+11890       dims = tally_dims
+11900       IF (flag = 0) THEN
+11910         GENop 61
+11920       ELSE
+11930         GENop 62
+11940       END IF
+11950       GENB dims
+11960       GENntd prev_sym3
+11970     END IF
+11980   ELSE
+11990     IF (pp5% OR (pp1% = 1)) THEN
+12000       IF (flag = 0) THEN
+12010         GENop 64
+12020       ELSE
+12030         GENop 66
+12040       END IF
+12050       GENntd prev_sym3
+12060     ELSE
+12070       IF (flag = 0) THEN
+12080         IF (pp1% = 2) THEN
+12090           GENop 106
+12100         ELSE
+12110           GENop 105
+12120         END IF
+12130       ELSE
+12140         IF (pp1% = 2) THEN
+12150           GENop 108
+12160         ELSE
+12170           GENop 107
+12180         END IF
+12190       END IF
+12200       GENntd prev_sym3
+12210     END IF
+12220   END IF
+12230   IF (assn_p9% AND flag) THEN
+12240   GENop 110 : END IF
+12250 END DEFine Genop_Symbol
+12255 :
+12260 DEFine PROCedure Parse_key_Remark
+12270   Getsym
+12280   IF (sym1% = Rem_text%) THEN
+12290     IF (LEN(sym4$) > 2) THEN
+12300       IF (sym4$(1 TO 2) = "$$") THEN
+12310         IF (sym4$(3) == "F") THEN
+12320           integer_mode% = 0
+12330         ELSE
+12340           IF (sym4$(3) == "I") THEN
+12350             integer_mode% = 1
+12360           ELSE
+12370             IF (sym4$(3 TO 4) == "on") THEN
+12380               program_error_text 0, 27
+12390             ELSE
+12400               IF (sym4$(3 TO 5) == "off") THEN
+12410                 jump_to_on
+12420               ELSE
+12430                 IF (sym4$(3 TO 10) == "external") THEN
+12440                   external_one% = 1
+12450                 ELSE
+12460                   IF (sym4$(3 TO 9) == "ext_all") THEN
+12470                     external_all% = 1
+12480                   ELSE
+12490                     init_rem_vars
+12500                   END IF
+12510                 END IF
+12520               END IF
+12530             END IF
+12540           END IF
+12550         END IF
+12560       END IF
+12570     END IF
+12580   END IF
+12590   REPeat skip_Remark
+12600     Skip_Stmt
+12610     IF End_of_Line% THEN
+12620       EXIT skip_Remark
+12630     END IF
+12640   END REPeat skip_Remark
+12650 END DEFine Parse_key_Remark
+12655 :
+12660 DEFine PROCedure init_rem_vars
+12670 LOCal target
+12680 LOCal RemVar$
+12690 LOCal LENname
+12700   target = 3
+12710   LENname = LEN(sym4$)
+12720   REPeat vars_lp
+12730     IF (LENname < (target + 5)) THEN
+12740       EXIT vars_lp
+12750     END IF
+12760     RemVar$ = sym4$(target TO (target + 3))
+12770     IF (RemVar$ == "chan") THEN
+12780       chans_ = (highest_count(15, 2, 100) + 1)
+12790     ELSE
+12800       IF (RemVar$ == "buff") THEN
+12810         buffer_ = highest_count(128, 128, 524288)
+12820       ELSE
+12830         IF (RemVar$ == "heap") THEN
+12840           heap_ = highest_count(512, 32, 524288)
+12850         ELSE
+12860           IF (RemVar$ == "stak") THEN
+12870             stack_ = highest_count(800, 128, 524288)
+12880             min128 = (INT(((stack_ / 6) / 4)) * 4)
+12890           ELSE
+12900             IF (RemVar$ == "asmb") THEN
+12910               assembler
+12920             ELSE
+12930               program_error 0, 24
+12940               EXIT vars_lp
+12950             END IF
+12960           END IF
+12970         END IF
+12980       END IF
+12990     END IF
+13000     target = (target + 1)
+13010   END REPeat vars_lp
+13020 END DEFine init_rem_vars
+13025 :
+13030 DEFine FuNction highest_count (default, minimum, maximum)
+13040 LOCal number
+13050   number = default
+13060   target = (target + 4)
+13070   IF (sym4$(target) = "=") THEN
+13080     target = (target + 1)
+13090     IF ((sym4$(target) >= "0") AND (sym4$(target) <= "9")) THEN
+13100       number = sym4$(target TO LENname)
+13110       IF (number < minimum) THEN
+13120         number = minimum
+13130       ELSE
+13140         IF (number > maximum) THEN
+13150           number = maximum
+13160         END IF
+13170       END IF
+13180     END IF
+13190   END IF
+13200   target_next_word
+13210   RETurn number
+13220 END DEFine highest_count
+13225 :
+13230 DEFine PROCedure target_next_word
+13240   REPeat advance
+13250     IF (LENname < target) THEN
+13260       RETurn
+13270     END IF
+13280     IF (sym4$(target) = ",") THEN
+13290       RETurn
+13300     END IF
+13310     target = (target + 1)
+13320   END REPeat advance
+13330 END DEFine target_next_word
+13335 :
+13340 DEFine PROCedure assembler
+13350 LOCal t
+13360 LOCal i
+13370   target = (target + 4)
+13380   i = (asm_files + 1)
+13390   IF (i > 8) THEN
+13400     program_error 1, 14
+13410   RETurn  : END IF
+13420   IF (sym4$(target) = "=") THEN
+13430     t = (target + 1)
+13440     target_next_word
+13450     IF (target > t) THEN
+13460       asmfile$(i) = sym4$(t TO (target - 1))
+13470       target = (target + 1)
+13480       t = target
+13490       target_next_word
+13500       IF (target > t) THEN
+13510         IF ((sym4$(t) >= "0") AND (sym4$(t) <= "9")) THEN
+13520           INIT(i) = sym4$(t TO (target - 1))
+13530           target = (target + 1)
+13540           t = target
+13550           target_next_word
+13560           IF (target > t) THEN
+13570             IF ((sym4$(t) >= "0") AND (sym4$(t) <= "9")) THEN
+13580               TABLE(i) = sym4$(t TO LENname)
+13590             ELSE
+13600               program_error 1, 23
+13610             END IF
+13620           ELSE
+13630             program_error 1, 23
+13640           END IF
+13650         ELSE
+13660           program_error 1, 23
+13670         END IF
+13680       ELSE
+13690         INIT(i) = 0
+13700         TABLE(i) = 0
+13710       END IF
+13720       OPEN #erch;asmfile$(i)
+13730       IF (Q_ERR  = 0) THEN
+13740         CLOSE #erch
+13750         asm_files = (asm_files + 1)
+13760       ELSE
+13770         work_file_error_text Q_ERR
+13780         program_error 1, 15
+13790       END IF
+13800     ELSE
+13810       program_error 1, 23
+13820     END IF
+13830   END IF
+13840   target_next_word
+13850 END DEFine assembler
+13855 :
+13860 DEFine PROCedure jump_to_on
+13870   IF _debug% THEN
+13880     RETurn
+13890   END IF
+13900   REPeat loop
+13910     IF NEXTLINE  THEN
+13920       EXIT loop
+13930     END IF
+13940     Getsym
+13950     Getsym                     : REMark 30 = "REMark"
+13960     IF ((sym1% = keyword%) AND (sym2% = 30)) THEN
+13970       Getsym
+13980       IF (sym1% = Rem_text%) THEN
+13990         IF (sym4$(1 TO 5) == "$$off") THEN
+14000           program_error_text 0, 27
+14010         END IF
+14020         IF (sym4$(1 TO 4) == "$$on") THEN
+14030           RETurn
+14040         END IF
+14050       END IF
+14060     END IF
+14070   END REPeat loop
+14080   End_of_Line% = 1
+14090 END DEFine jump_to_on
+14095 :
+14100 DEFine PROCedure Select_Instance
+14110 LOCal ssptr
+14120 LOCal iptr
+14130   IF (sels_level% = 0) THEN
+14140     program_error 1, 9
+14150     RETurn
+14160   END IF
+14170   ssptr = current_struct_ptr(2)
+14180   GENop 101
+14190   Gen_L sels_stack%(0, sels_level%), 1
+14200   Gen_struct sels_stack%(1, sels_level%)
+14210   sels_stack%(1, sels_level%) = (ssptr + 1)
+14220   REPeat instance_range
+14230     Getsym
+14240     IF (sym1% <> keyword%) THEN
+14250       GENop 64
+14260       GENntd sels_stack%(2, sels_level%)
+14270       expression 0
+14280     END IF
+14290     IF (sym1% = keyword%) THEN
+14300       IF (sym2% = 11) THEN
+14310         iptr = current_struct_ptr(1)     : REMark 11 = "TO"
+14320         GENop 41
+14330         GENop 102
+14340         Gen_L iptr, 1
+14350         GENop 64
+14360         GENntd sels_stack%(2, sels_level%)
+14370         expr
+14380         GENop 39
+14390         GENop 102
+14400         Gen_L ssptr, 1
+14410         Gen_struct iptr
+14420       ELSE
+14430         Getsym
+14440         EXIT instance_range
+14450       END IF
+14460     ELSE
+14470       GENop 43
+14480       GENop 104
+14490       Gen_L ssptr, 1
+14500     END IF
+14510     IF End_of_Stmt% THEN
+14520       GENop 101
+14530       Gen_L (ssptr + 1), 1
+14540       Gen_struct ssptr
+14550       EXIT instance_range
+14560     END IF
+14570   END REPeat instance_range
+14580 END DEFine Select_Instance
+14585 :
+14590 DEFine PROCedure Parse_Name_Stmt
+14600   IF (((p2% < 4) OR (p2% = 6)) OR (p2% = 7)) THEN
+14610     Parse_Assignment_Stmt
+14620   ELSE
+14625     Parse_Name_Proc
+14630   END IF
+14640 END DEFine Parse_Name_Stmt
+14645 :
+14650 DEFine PROCedure Parse_Name_Proc
+14660 LOCal name_sym3
+14670 LOCal case%
+14680 LOCal name_struct
+14690 LOCal target
+14700 LOCal here
+14710 LOCal case_7plus%
+14720   name_sym3 = sym3
+14730   case% = p2%
+14740   name_struct = struct_base%
+14750   target = 0
+14760   case_7plus% = 0
+14770   IF (case% > 7) THEN
+14780     case_7plus% = 1
+14790     RNAME name_adr(name_sym3), p0%, struct_base%, FOR_ranges%, MC$
+14800     target = (":" & MC$ & "," INSTR MC_pfn$)           : REMark see line 21500
+14810     IF (target <> 0) THEN
+14820       target = MC_pfn$((target - 2) TO target)
+14830       IF (target = 0) THEN
+14840         program_error 0, 10
+14850         Skip_Stmt
+14860         RETurn
+14870       ELSE
+14880         SELect ON target
+14890         ON target = 1 TO 24, 86, 87, 89, 91 : Getsym   : REMark Maths
+14900           expr                                    : REMark LEN CODE CHR$ RESPR
+14910           GENop target
+14920           RETurn
+14930         ON target = 25 : Skip_Stmt                     : REMark CLEAR
+14940           RETurn
+14950         ON target = 26 : Gen_Def_Integer               : REMark DEF_INTEGER
+14960           RETurn
+14970         ON target = 27 : Gen_Global                    : REMark GLOBAL
+14980           RETurn
+14990         ON target = 28 : Gen_Ext_Proc                  : REMark EXT_Proc
+15000           RETurn
+15010         ON target = 29 : Gen_Ext_Fn                    : REMark EXT_FN
+15020           RETurn
+15030         ON target = 30 : Gen_Read                      : REMark READ
+15040           RETurn
+15050         ON target = 45 : GENop target                  : REMark STOP
+15060           RETurn
+15070         ON target = 50 TO 70 : GENop 49                : REMark ERR _NC -> _BL
+15080           GENop 69
+15090           GENW (49 - target)
+15100           GENop 37
+15110           RETurn
+15120         ON target = 71 : GENop 49                      : REMark ERNUM
+15130           RETurn
+15140         ON target = 72 : GENop 50                      : REMark ERLIN
+15150           RETurn
+15160         ON target = 73 : Gen_Continue_Retry 90         : REMark CONTINUE
+15170           RETurn
+15180         ON target = 74 : Gen_Continue_Retry 100        : REMark RETRY
+15190           RETurn
+15200         ON target = 90 : Getsym                        : REMark RUN
+15210           IF End_of_Stmt% THEN
+15220             GENop 101
+15230             Gen_L_sym3 1, 1
+15240           ELSE
+15250             IF (sym1% >= float%) THEN
+15260               GENop 101
+15270               Gen_L_sym3 sym3, 1
+15280             ELSE
+15290               expr
+15300               GENop 99
+15310               _noline = 1
+15320             END IF
+15330           END IF
+15340           RETurn
+15350         ON target = 88 : IF Gen_Eof THEN
+15360             GENop target                               : REMark EOF
+15370             RETurn
+15380           END IF
+15390           target = 0
+15400         ON target = 92 : Gen_Fills                     : REMark FILL$
+15410           RETurn
+15420         END SELect
+15430       END IF
+15440     END IF
+15450   END IF
+15460   IF (case% = 8) THEN
+15470     GENop 1
+15480   ELSE
+15490     GENop 44
+15500   END IF
+15510   here = LPOS
+15520   Getsym
+15530   IF ((case% = 5) OR (case% = 9)) THEN
+15540     IF ((sym1% = symbol%) AND (sym2% = 1)) THEN
+15550       program_error 1, 8      : REMark 1 = "="
+15560       RETurn
+15570     END IF
+15580     IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+15590       argument_list           : REMark 5 = "("
+15600     ELSE
+15610       LSET_POS here
+15620     END IF
+15630   ELSE
+15640     LSET_POS here
+15650     IF ((sym1% = symbol%) AND (sym2% = 1)) THEN
+15660       program_error 1, 8      : REMark 1 = "="
+15670       RETurn
+15680     END IF
+15690     IF NOT (End_of_Stmt%) THEN
+15700       argument_list
+15710     END IF
+15720   END IF
+15730   IF (case% < 6) THEN
+15740     GENop 103
+15750     Gen_L name_struct, 1
+15760   ELSE
+15770     IF (target = 0) THEN
+15780       GENop 75
+15790       GENntd name_sym3
+15800     ELSE
+15810       GENop target
+15820     END IF
+15830   END IF
+15840 END DEFine Parse_Name_Proc
+15845 :
+15850 DEFine PROCedure argument_list     : REMark in a PROC/FN call
+15860 LOCal err_num
+15870 LOCal here
+15880 LOCal hash
+15890 LOCal prev_pos
+15900 LOCal prev_sym2%
+15910 LOCal prev_sym1%
+15920 LOCal prev_sym3
+15930   REPeat arguments
+15940     hash = 0
+15950     here = LPOS
+15960     Getsym
+15970     IF (sym1% = symbol%) THEN
+15980       IF (sym2% = 3) THEN
+15990         hash = 128     : REMark 3 = "#"
+16000         Getsym
+16010       ELSE
+16020         IF End_of_Stmt% THEN
+16030           EXIT arguments
+16040         END IF
+16050       END IF
+16060     END IF
+16070     IF ((sym1% = name%) AND (((p2% < 4) OR (p2% = 6)) OR (p2% = 7))) THEN
+16080       IF hash THEN
+16090         name_follows_hash = 1
+16100       END IF
+16110       err_num = sym3
+16120       Getsym                    : REMark 5 = "("
+16130       IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+16140         between_brackets
+16150       ELSE
+16160         IF ((sym1% = arg_wise%) OR (sym1% = symbol%)) THEN
+16170           pack_name
+16180           GENop 60
+16190           Gen_hash
+16200           GENntd err_num
+16210         ELSE
+16220           Gen_current here
+16230         END IF
+16240       END IF
+16250     ELSE
+16260       IF hash THEN
+16270         IF (sym1% >= float%) THEN
+16280           prev_sym3  = sym3
+16290           prev_sym2% = sym2%
+16300           prev_sym1% = sym1%
+16310           prev_pos   = LPOS
+16320           Getsym
+16330           IF (sym1% = arg_wise%) THEN
+16340             IF (chans_ <= sym3) THEN
+16350               chans_ = (sym3 + 1)    : REMark update number of channels
+16360             END IF
+16370           END IF
+16380           sym1%  = prev_sym1%
+16390           sym2%  = prev_sym2%
+16400           sym3   = prev_sym3
+16410           LSET_POS prev_pos
+16420         END IF
+16430       END IF
+16440       IF (sym1% = arg_wise%) THEN
+16450         GENop 94
+16460         Gen_hash
+16470       ELSE
+16480         Gen_current here
+16490       END IF
+16500     END IF
+16510     IF (sym1% <> arg_wise%) THEN
+16520       EXIT arguments
+16530     END IF
+16540   END REPeat arguments
+16550 END DEFine argument_list
+16555 :
+16560 DEFine PROCedure Gen_hash
+16570   IF ((case% = 4) OR (case% = 5)) THEN
+16580     GENB 0
+16590   ELSE
+16600     IF (sym1% = arg_wise%) THEN
+16610       GENB ((sym2% * 16) + hash)
+16620     ELSE
+16630       GENB hash
+16640     END IF
+16650   END IF
+16660 END DEFine Gen_hash
+16665 :
+16670 DEFine PROCedure Gen_current (here)
+16680   LSET_POS here
+16690   IF hash THEN
+16700     Getsym
+16710   END IF
+16720   expr
+16730   GENop 51
+16740   Gen_hash
+16750 END DEFine Gen_current
+16755 :
+16760 DEFine PROCedure between_brackets
+16770 LOCal ndims
+16780 LOCal i
+16790 LOCal now
+16800 LOCal arg_bracket
+16810   i = 0
+16820   now = LPOS
+16830   arg_bracket = Skip_to_List_End
+16840   IF ((sym1% = arg_wise%) OR (sym1% = symbol%)) THEN
+16850     LSET_POS now
+16860     ndims = 0
+16870     ndims = Gen_dims_count
+16880     GENop 67
+16890     pack_name
+16900     Gen_hash
+16910     GENB ndims
+16920     GENntd err_num
+16930   ELSE
+16940     Gen_current here
+16950   END IF
+16960 END DEFine between_brackets
+16965 :
+16970 DEFine PROCedure Gen_Continue_Retry (retry_code)
+16980   Getsym
+16990   IF End_of_Stmt% THEN
+17000     GENop 69
+17010     GENW 0
+17020   ELSE
+17030     expression 0
+17040     _noline = 1
+17050   END IF
+17060   GENop retry_code
+17070   Skip_Stmt
+17080 END DEFine Gen_Continue_Retry
+17085 :
+17090 DEFine PROCedure pack_name
+17100   IF NOT (case_7plus%) THEN
+17110     RETurn
+17120   END IF
+17130   IF _nonames% THEN
+17140     RNAME name_adr(err_num), p0%
+17150     unpack
+17160     p4% = 1
+17170     pack
+17180     WNAME name_adr(err_num), p0%
+17190   END IF
+17200 END DEFine pack_name
+17205 :
+17210 DEFine FuNction Skip_to_List_End
+17220 LOCal arg_bracket
+17230 LOCal i               : REMark brackets are counted up and down
+17240   i = 0
+17250   arg_bracket = 0     : REMark whether list starts with an arg_wise% "("
+17260   REPeat skip_lp
+17270     Getsym
+17280     IF (sym1% = symbol%) THEN
+17290       IF (sym2% = 5) THEN
+17300         i = (i + 1)       : REMark 5 = "("      6 = ")"
+17310       ELSE
+17320         IF (sym2% = 6) THEN
+17330           IF (i = 0) THEN
+17340             Getsym                     : REMark 5 is symbol "("
+17350             IF ((sym1% <> symbol%) OR (sym2% <> 5)) THEN
+17360               EXIT skip_lp
+17370             END IF
+17380             i = (i + 1)
+17390           END IF
+17400           i = (i - 1)
+17410         END IF
+17420       END IF
+17430     ELSE                          : REMark 5 = "("
+17440       IF ((sym1% = arg_wise%) AND (sym2% = 5)) THEN
+17450         IF (i = 0) THEN
+17460           arg_bracket = 1
+17470         END IF
+17480       END IF
+17490     END IF
+17500   END REPeat skip_lp
+17510   RETurn arg_bracket
+17520 END DEFine Skip_to_List_End
+17525 :
+17530 DEFine FuNction tally_dims
+17540 LOCal ndims
+17550   ndims = 0
+17560   REPeat dims_lp
+17570     expr
+17580     ndims = (ndims + 1)       : REMark 6 = ")"
+17590     IF ((sym1% = symbol%) AND (sym2% = 6)) THEN
+17600       Getsym
+17610       IF ((sym1% <> symbol%) OR (sym2% <> 5)) THEN
+17620         EXIT dims_lp             : REMark 5 = "("
+17630       END IF
+17640     END IF
+17650   END REPeat dims_lp
+17660   RETurn ndims
+17670 END DEFine tally_dims
+17675 :
+17680 DEFine FuNction Gen_dims_count  : REMark similar to dims_count - See next DEFFN
+17690 LOCal ndims
+17700   ndims = 0
+17710   REPeat dims_lp
+17720     Getsym
+17730     IF ((sym1% = arg_wise%) AND (sym2% <> 5)) THEN
+17740       GENop 69                   : REMark 5 is keyword "SELect"  or  symbol "("
+17750       GENW -1
+17760       GENop 11
+17770     ELSE
+17780       IF ((sym1% = arg_wise%) AND (sym2% = 5)) THEN
+17790         GENop 69                  : REMark 5 = "("
+17800         GENW -1
+17810       ELSE
+17820         expression 0
+17830       END IF                      : REMark 5 = "("
+17840       IF ((sym1% = arg_wise%) AND (sym2% = 5)) THEN
+17850         Getsym
+17860         IF ((sym1% = arg_wise%) OR ((sym1% = symbol%) AND (sym2% = 6))) THEN
+17870           GENop 69                                        : REMark 6 = ")"
+17880           GENW -1
+17890         ELSE
+17900           expression 0
+17910         END IF
+17920       ELSE
+17930         GENop 11
+17940       END IF
+17950     END IF
+17960     ndims = (ndims + 1)       : REMark 6 = ")"
+17970     IF ((sym1% = symbol%) AND (sym2% = 6)) THEN
+17980       Getsym
+17990       IF ((sym1% <> symbol%) OR (sym2% <> 5)) THEN
+18000         EXIT dims_lp             : REMark 5 = "("
+18010       END IF
+18020     END IF
+18030   END REPeat dims_lp
+18040   RETurn ndims
+18050 END DEFine Gen_dims_count
+18055 :
+18060 DEFine FuNction dims_count
+18070 LOCal ndims
+18080   ndims = 1
+18090   REPeat dims_lp
+18100     Getsym                       : REMark 5 = "("
+18110     IF ((sym1% = arg_wise%) AND (sym2% <> 5)) THEN
+18120       program_error 1, 16
+18130       Getsym
+18140       EXIT dims_lp
+18150     ELSE
+18160       IF ((sym1% = arg_wise%) AND (sym2% = 5)) THEN
+18170         GENop 69                  : REMark 5 = "("
+18180         GENW 1
+18190       ELSE
+18200         expression 0
+18210       END IF                      : REMark 5 = "("
+18220       IF ((sym1% = arg_wise%) AND (sym2% = 5)) THEN
+18230         Getsym
+18240         IF ((sym1% = symbol%) AND (sym2% = 6)) THEN
+18250           GENop 69                : REMark 6 = ")"
+18260           GENW -1
+18270         ELSE
+18280           expression 0
+18290         END IF
+18300         Getsym
+18305         EXIT dims_lp
+18310       END IF
+18320     END IF
+18330     ndims = (ndims + 1)       : REMark 6 = ")"
+18340     IF ((sym1% = symbol%) AND (sym2% = 6)) THEN
+18350       Getsym
+18360       IF ((sym1% <> symbol%) OR (sym2% <> 5)) THEN
+18370         EXIT dims_lp             : REMark 5 = "("
+18380       END IF
+18390     END IF
+18400   END REPeat dims_lp
+18410   RETurn ndims
+18420 END DEFine dims_count
+18425 :
+18430 DEFine PROCedure Gen_Read
+18440   REPeat read_lp
+18450     GENop 95
+18460     Getsym                              : REMark read name
+18470     Genop_Symbol 1, sym3, p5%, p1%, 0   : REMark read "," or "(" or CHR$(10)
+18480     IF End_of_Stmt% THEN
+18490       EXIT read_lp
+18500     END IF
+18510   END REPeat read_lp
+18520 END DEFine Gen_Read
+18525 :
+18530 DEFine FuNction Gen_Eof
+18540 LOCal here
+18550   here = LPOS
+18560   Getsym
+18570   LSET_POS here : REMark 5 = (
+18580   IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+18590   RETurn 0 : END IF
+18600   RETurn 1
+18610 END DEFine Gen_Eof
+18615 :
+18620 DEFine PROCedure Gen_Def_Integer
+18630   IF (RP_ADDR  <> (start_adr + stmt_adr)) THEN
+18640     program_error 1, 22
+18650   ELSE
+18660     REPeat loop
+18670       Getsym
+18680       IF (sym1% = name%) THEN
+18690         RNAME name_adr(sym3), p0%
+18700         unpack
+18710         p1% = 3
+18720         pack
+18730         WNAME name_adr(sym3), p0%
+18740       END IF
+18750       IF End_of_Stmt% THEN
+18760         EXIT loop
+18770       END IF
+18780     END REPeat loop
+18790   END IF
+18800 END DEFine Gen_Def_Integer
+18805 :
+18810 DEFine PROCedure Gen_Global
+18820   IF (RP_ADDR  <> start_adr) THEN
+18830     program_error 1, 22
+18840   ELSE
+18850     REPeat loop
+18860       Getsym
+18870       IF (sym1% = name%) THEN
+18880         RNAME name_adr(sym3), p0%
+18890         unpack
+18900         p8% = 1
+18910         p4% = 1
+18920         pack
+18930         globals_declared% = (globals_declared% + 1)
+18940         WNAME name_adr(sym3), p0%
+18950       END IF
+18960       IF End_of_Stmt% THEN
+18970         EXIT loop
+18980       END IF
+18990     END REPeat loop
+19000   END IF
+19010 END DEFine Gen_Global
+19015 :
+19020 DEFine PROCedure Gen_Ext_Proc
+19030   Gen_Ext_Proc_Fn 8
+19040 END DEFine Gen_Ext_Proc
+19045 :
+19050 DEFine PROCedure Gen_Ext_Fn
+19060   Gen_Ext_Proc_Fn 9
+19070 END DEFine Gen_Ext_Fn
+19075 :
+19080 DEFine PROCedure Gen_Ext_Proc_Fn (class)
+19090   IF (RP_ADDR  <> start_adr) THEN
+19100     program_error 1, 22
+19110   ELSE
+19120     REPeat loop
+19130       Getsym
+19140       IF End_of_Stmt% THEN
+19150         EXIT loop
+19160       END IF
+19170       IF (sym1% = 7) THEN
+19180         FOR i = 1 TO NumNames%
+19190           RNAME name_adr(i), p0%, struct_base%, FOR_ranges%, ExtPFNname$
+19200           IF (ExtPFNname$ == sym4$) THEN
+19210             unpack
+19220             p2% = class
+19230             p4% = 1
+19240             pack
+19250             WNAME name_adr(i), p0%
+19260           END IF
+19270           EXIT i
+19280         END FOR i
+19290       ELSE
+19300         IF (sym1% = 6) THEN
+19310           program_error 0, 24
+19320         END IF
+19330       END IF
+19340     END REPeat loop
+19350   END IF
+19360 END DEFine Gen_Ext_Proc_Fn
+19365 :
+19370 DEFine PROCedure Gen_Fills
+19380   Getsym
+19390   expr
+19400   expr
+19410   GENop 92
+19420 END DEFine Gen_Fills
+19425 :
+19430 DEFine PROCedure Getsym
+19440   NEXT_TOKEN sym1%, sym2%, sym3, sym4$, End_of_Stmt%, End_of_Line%
+19450   :
+19460   ON sym1% GO TO 19540, 19540, 19540, 19540, 19540, 19470, 19540, 19540, 19540, 19540, 19540, 19520, 19520
+19470   sym3 = (sym2% + 1)
+19480   RNAME name_adr(sym3), p0%, struct_base%, FOR_ranges%
+19490   unpack
+19500   RETurn
+19510   :
+19520   sym3 = sym2%
+19530   :
+19540 END DEFine Getsym
+19545 :
+19550 DEFine PROCedure unpack
+19560   UNPACK_N p0%, p1%, p2%, p3%, p4%, p5%, p6%, p7%, p8%, p9%
+19570 END DEFine unpack
+19575 :
+19580 DEFine PROCedure pack
+19590   PACK_N p0%, p1%, p2%, p3%, p4%, p5%, p6%, p7%, p8%, p9%
+19600 END DEFine pack
+19605 :
+19610 DEFine PROCedure read_Ext_PFN_names
+19620 LOCal LENxPFNname%
+19630 LOCal address
+19640   struct_base% = 0
+19650   FOR_ranges% = 0
+19660   p3% = 0
+19670   p1% = 0
+19680   address = name_table
+19690   p4% = 0
+19700   p6% = 0
+19710   p5% = 0
+19720   p2% = 0
+19730   p7% = 0
+19740   p8% = 0
+19750   p9% = 0
+19760   p0% = 0
+19770   LENxPFNname% = 0
+19780   ExtPFNname$ = "                 "
+19790   FOR xpfn = 1 TO NumNames%
+19800     READ_name #wrk, p0%, LENxPFNname%, ExtPFNname$
+19810     IF (ExtPFNname$ == "cmd$") THEN
+19820       xpfn8 = (xpfn * 8)
+19830     END IF
+19840     name_adr(xpfn) = address
+19850     struct_base% = struct_ptr
+19860     struct_ptr = (struct_ptr + 2)
+19870     WNAME address, p0%, struct_base%, FOR_ranges%, ExtPFNname$
+19880     address = (address + LENxPFNname%)
+19890   END FOR xpfn
+19900 END DEFine read_Ext_PFN_names
+19905 :
+19910 DEFine PROCedure expr
+19920   Getsym
+19930   expression 0
+19940 END DEFine expr
+19945 :
+19950 DEFine PROCedure expression (level1%)
+19960 LOCal level2%
+19970   IF (sym1% = five%) THEN
+19980     IF (sym2% = 2) THEN
+19990       Getsym            : REMark 2 = ":" ? - could be not
+20000       statement
+20010     ELSE
+20020       sym1% = four%
+20030       sym2% = (sym2% + 22)
+20040     END IF
+20050   ELSE
+20060     statement
+20070   END IF
+20080   IF (sym1% = four%) THEN
+20090     REPeat priority_levels
+20100       level2% = sym2%
+20110       IF (priority1%(level1%) >= priority2%(level2%)) THEN
+20120         gen_op_codes level1%
+20130         level1% = level2%
+20140         RETurn
+20150       ELSE
+20160         Getsym
+20170         expression level2%
+20180       END IF
+20190       IF (sym1% <> four%) THEN
+20200         gen_op_codes level2%
+20210         RETurn
+20220       END IF
+20230     END REPeat priority_levels
+20240   END IF
+20250 END DEFine expression
+20255 :
+20260 DEFine PROCedure statement
+20270   ON sym1% GO TO 20670, 20670, 20540, 20670, 20670, 20650, 20620, 20670, 20670, 20670, 20290, 20480, 20480
+20280                                                      : REMark 11 float
+20290   IF ((sym3 < 32768) AND (integer_mode% = 1)) THEN
+20300     IF (sym3 > -32767) THEN
+20310       IF (sym3 = INT(sym3)) THEN
+20320         GENop 69
+20330         GENint sym3
+20340         Getsym
+20350         RETurn
+20360       END IF
+20370     END IF
+20380   END IF
+20390   IF SHORTF (sym3) THEN
+20400     GENop 73
+20410     GENsfloat sym3
+20420   ELSE
+20430     GENop 68
+20440     GENfloat sym3
+20450   END IF
+20460   Getsym
+20470   RETurn
+20480                                                      : REMark 12, 13
+20490   GENop 69
+20500   GENint sym2%
+20510   Getsym
+20520   RETurn
+20530   :    REMark 5 = "("                                : REMark 3 symbol%
+20540   IF (sym2% = 5) THEN
+20550     expr                      : REMark 6 = ")"
+20560     IF ((sym1% = symbol%) AND (sym2% = 6)) THEN
+20570       Getsym
+20580     END IF
+20590   END IF
+20600   RETurn
+20610   :
+20620   Gen_string                                         : REMark 7 "string"
+20630   RETurn
+20640   :
+20650   Gen_Name                                           : REMark 6 name
+20660   :
+20670 END DEFine statement                                 : REMark 1,2,4,5,8,9,10
+20675 :
+20680 DEFine PROCedure Gen_string
+20690 LOCal ndims
+20700   GENop 70
+20710   GENstring sym4$
+20720   Getsym                    : REMark 5 = "("
+20730   IF ((sym1% = symbol%) AND (sym2% = 5)) THEN
+20740     ndims = Gen_dims_count
+20750     GENop 93
+20760     GENB ndims
+20770   END IF
+20780 END DEFine Gen_string
+20785 :
+20790 DEFine PROCedure Gen_Name
+20800   IF ((p2% = 5) OR (p2% = 9)) THEN
+20810     Parse_Name_Proc
+20820     Getsym
+20830   ELSE
+20840     Genop_Symbol 0, sym3, p5%, p1%, p9%
+20850   END IF
+20860 END DEFine Gen_Name
+20865 :
+20870 DEFine FuNction init_vars
+20880   End_of_Stmt% = 0
+20890   End_of_Line% = 0
+20900   error_count = 0
+20910   warning_count = 0
+20930   In_Defn = -1
+20940   p2_value = 0
+20950   ifs_ptr = 0
+20960   start_sels_level = 0
+20970   repeater = 0
+20980   xpfn8 = -1
+21000   external_one% = 0
+21010   ext_count% = 0
+21020   external_all% = 0
+21030   globals_declared% = 0
+21040   integer_mode% = 0
+21050   name_follows_hash = 0
+21060   when_ptr% = 0
+21070   when_state% = 0
+21080   stmt_adr = 0
+21090   asm_start = 0
+21100   asm_files = 0
+21110   DIM asmfile$(8, 36)
+21120   DIM INIT(8)
+21130   DIM TABLE(8)
+21140   keyword%  =  2 : REMark sym1% meaning SB keyword    sym2% = 1 to 31 code
+21150   symbol%   =  3 : REMark sym1%  sym2% "=",":","#",",","(",")","{","}"," ",(10)
+21160   four%     =  4 : REMark sym1% meaning     derived from five%
+21170   five%     =  5 : REMark sym1% meaning     used in expression
+21180   name%     =  6 : REMark sym1% meaning name          value of name unknown !
+21190   REMark    =  7 : REMark sym1% meaning "string"      sym2% = LEN("string")
+21200   Rem_text% =  8 : REMark sym1% meaning REMark text   sym2% = LEN(text)
+21210   tok_line_no%=9 : REMark sym1% meaning line number   sym2% = line_num
+21220   arg_wise% = 10 : REMark sym1% meaning within argument list to a PROC/FN call
+21230   float%    = 11 : REMark sym1% meaning float
+21240   REMark    = 12
+21250   REMark    = 13 : REMark   not used           sym1% -> sym6%  from NEXT_TOKEN
+21260   DIM sym4$(512) : REMark text
+21270   sym1% = 0      : REMark                               sym5% = End_of_Stmt%
+21280   sym2% = 0      : REMark                               sym6% = End_of_Line%
+21290   sym3  = 0      : REMark numeric value
+21300   DIM priority1%(26)
+21310   DIM priority2%(26)
+21320   RESTORE 26830
+21330   FOR i = 0 TO 26
+21340     READ priority1%(i)
+21350   END FOR i
+21360   FOR i = 0 TO 26
+21370     READ priority2%(i)
+21380   END FOR i
+21390   DIM op_codes%(26)
+21400   FOR i = 1 TO 26
+21410     READ op_codes%(i)
+21420   END FOR i
+21430   data_struct = 4
+21440   DIM ifs_stack%(max_ifs%)
+21450   ifs_level% = 0
+21460   DIM sels_stack%(2, max_sels%)
+21470   sels_level% = 0
+21480   struct_ptr = 10
+21490   zero = 0
+21500   MC_pfn$ = FILL$(" ", 600)
+21510   MC_pfn$(  1 TO  50) = "02:INT,09:ABS,12:COS,13:SIN,14:TAN,15:COT,16:ASIN,"
+21520   MC_pfn$( 51 TO 100) = "17:ACOS,18:ATAN,19:ACOT,20:SQRT,21:LN,22:LOG10,   "
+21530   MC_pfn$(101 TO 150) = "30:READ,45:STOP,86:LEN,87:CODE,88:EOF,89:CHR$,    "
+21540   MC_pfn$(151 TO 200) = "90:RUN,91:RESPR,92:FILL$, 25:CLEAR,26:DEF_INTEGER,"
+21550   MC_pfn$(201 TO 250) = "27:GLOBAL,28:EXT_Proc,29:EXT_FN,        50:ERR_NC,"
+21560   MC_pfn$(251 TO 300) = "51:ERR_NJ,52:ERR_OM,53:ERR_OR,54:ERR_BO,55:ERR_NO,"
+21570   MC_pfn$(301 TO 350) = "56:ERR_NF,57:ERR_EX,58:ERR_IU,59:ERR_EF,60:ERR_DF,"
+21580   MC_pfn$(351 TO 400) = "61:ERR_BN,62:ERR_TE,63:ERR_FF,64:ERR_BP,65:ERR_FE,"
+21590   MC_pfn$(401 TO 450) = "66:ERR_XP,67:ERR_OV,68:ERR_NI,69:ERR_RO,70:ERR_BL,"
+21600   MC_pfn$(451 TO 500) = "71:ERNUM,72:ERLIN,73:CONTINUE,74:RETRY,  00:MERGE,"
+21610   MC_pfn$(501 TO 550) = "00:LOAD,00:EDIT,00:LIST,00:NEW,00:QLOAD,00:QSAVE, "
+21620   MC_pfn$(551 TO 600) = "00:AUTO,00:DLINE,00:MRUN,00:RENUM,00:SAVE,00:LRUN,"
+21630   name_table = 0
+21640   Lnum_adr = 0
+21650   mem500 = 0
+21660   data_adr = 0
+21670   WINPUT #wrk, i
+21680   IF (i <> 20785) THEN
+21690   RETurn 1 : END IF
+21700   WINPUT #wrk, i
+21710   WINPUT #wrk, NumNames%, area, L_adr
+21720   DIM name_adr(NumNames%)
+21730   name_table = ALCHP ((((area + (NumNames% * 2)) + NumNames%) + 12))
+21740   Lnum_adr = allocate_memory(0, (L_adr + 10))
+21750   mem500 = allocate_memory(0, 500)
+21760   data_adr = allocate_memory(0, 20)
+21770   read_Ext_PFN_names
+21775   convert_hex_bin_tokens
+21780   LINT #wrk, 4096, POS (#wrk)
+21790   set_start_adr
+21800   RETurn 0
+21810 END DEFine init_vars
+21815 :
+21820 DEFine FuNction current_struct_ptr (bytes)
+21830 LOCal start
+21840   start = struct_ptr
+21850   struct_ptr = (struct_ptr + bytes)
+21860   RETurn start
+21870 END DEFine current_struct_ptr
+21875 :
+21880 DEFine PROCedure program_error (is_err, err_num)
+21890   program_error_text is_err, err_num
+21900   Skip_Stmt
+21910 END DEFine program_error
+21915 :
+21920 DEFine PROCedure program_error_text (is_err, err_num)
+21930 LOCal er$
+21940   IF is_err THEN
+21950     error_count = (error_count + 1)
+21960   ELSE
+21970     warning_count = (warning_count + 1)
+21980   END IF
+21990   SELect ON err_num
+22000   ON err_num =  1 : er$ = "Not a Q_liberator work file"
+22010   ON err_num =  2 : er$ = "Unrecognised symbol"
+22020   ON err_num =  3 : er$ = "Unsupported statement"
+22030   ON err_num =  4 : er$ = "Too many nested IFs"
+22040   ON err_num =  5 : er$ = "END IF without IF"
+22050   ON err_num =  6 : er$ = "ELSE without IF"
+22060   ON err_num =  7 : er$ = "Too many nested SELects"
+22070   ON err_num =  8 : er$ = "Ambiguous name"
+22080   ON err_num =  9 : er$ = "SELect missing"
+22090   ON err_num = 10 : er$ = "Procedure cannot be compiled"
+22100   ON err_num = 11 : er$ = "END IF missing - END IF inserted"
+22110   ON err_num = 12 : er$ = "END SELect missing"
+22120   ON err_num = 13 : er$ = "END REPeat missing"
+22130   ON err_num = 14 : er$ = "Too many assembler routines"
+22140   ON err_num = 15 : er$ = "Cannot open assembler routine"
+22150   ON err_num = 16 : er$ = "Array construct not supported"
+22160   ON err_num = 17 : er$ = "Variable used for channel number"
+22170   ON err_num = 18 : er$ = "Conditional END DEFine , RETURN assumed"
+22180   ON err_num = 19 : er$ = "Nested DEFINE's , END DEFINE inserted "
+22190   ON err_num = 20 : er$ = "END DEFine without DEFINE"
+22200   ON err_num = 21 : er$ = "END DEFine missing - inserted"
+22210   ON err_num = 22 : er$ = "Keyword must be at start of program"
+22220   ON err_num = 23 : er$ = "Syntax error in REM $$ directive"
+22230   ON err_num = 24 : er$ = "Syntax error"
+22240   ON err_num = 25 : er$ = "Nested When not allowed"
+22250   ON err_num = 26 : er$ = "End When without matching When"
+22260   ON err_num = 27 : er$ = "REM $$off/on sequence error"
+22270   ON err_num = REMAINDER : er$ = "Error " & err_num & " detected"
+22280   END SELect
+22290   IF _nobeep% THEN
+22300     IF is_err THEN
+22310       BEEP 500, 30
+22320     ELSE
+22330       BEEP 500, 10
+22340     END IF
+22350   END IF
+22360   IF (err_num <> 17) THEN
+22370     PRINT #rpt, "Line"!line_num;",";Stmt_num%;" ";
+22380   END IF
+22390   IF is_err THEN
+22400     PRINT #rpt;"Error....";er$
+22410   ELSE
+22420     PRINT #rpt;"Warning..";er$
+22430   END IF
+22440 END DEFine program_error_text
+22445 :
+22450 DEFine PROCedure work_file_error_text (er)
+22460 LOCal e
+22470   e = er
+22480   SELect ON e
+22490   ON e =   1 : er$ = "Not a valid work file"
+22500   ON e =  -1 : er$ = "Operation not complete"
+22510   ON e =  -2 : er$ = "Not a valid job"
+22520   ON e =  -3 : er$ = "Out of memory "
+22530   ON e =  -4 : er$ = "Out of range "
+22540   ON e =  -7 : er$ = "File not found "
+22550   ON e =  -8 : er$ = "File already exists "
+22560   ON e =  -9 : er$ = "File in use "
+22570   ON e = -10 : er$ = "End of file "
+22580   ON e = -11 : er$ = "Drive full "
+22590   ON e = -12 : er$ = "Bad device name "
+22600   ON e = -13 : er$ = "Transmission error"
+22610   ON e = -15 : er$ = "Bad paramemter "
+22620   ON e = -16 : er$ = "File error "
+22630   ON e = -20 : er$ = "Read only"
+22640   ON e = REMAINDER : er$ = "name too long"
+22650   END SELect
+22660   PRINT #rpt;er$
+22670 END DEFine work_file_error_text
+22675 :
+22680 DEFine PROCedure Skip_Stmt
+22690   REPeat skip
+22700     IF zero THEN
+22710       EXIT skip
+22720     END IF
+22730     IF End_of_Stmt% THEN
+22740       EXIT skip
+22750     END IF
+22760     Getsym
+22770   END REPeat skip
+22780 END DEFine Skip_Stmt
+22785 :
+22790 DEFine PROCedure Gen_L (a_sym, unused_8)
+22800   GENL find_sym(mem500, a_sym)
+22810 END DEFine Gen_L
+22815 :
+22820 DEFine PROCedure Gen_L_sym3 (sym3_value, unused_8)
+22830   GENL FINDSYMBOL (Lnum_adr, sym3_value, RP_ADDR )
+22840 END DEFine Gen_L_sym3
+22845 :
+22850 DEFine PROCedure Gen_L_data (sym3_value, unused_8)
+22860   GENL find_sym(data_adr, sym3_value)
+22870 END DEFine Gen_L_data
+22875 :
+22880 DEFine PROCedure gen_op_codes (level2%)
+22890   GENop op_codes%(level2%)
+22900 END DEFine gen_op_codes
+22905 :
+22910 DEFine PROCedure OverWrite_L (value, target)
+22930 LOCal current
+22940   current = POS (#obj)
+22950   SETPOS #obj, target
+22960   LWRITE #obj, value
+22970   SETPOS #obj, current
+22980 END DEFine OverWrite_L
+22985 :
+22990 DEFine PROCedure OverWrite_W (value, target)
+23010 LOCal current
+23020   current = POS (#obj)
+23030   SETPOS #obj, target
+23040   WWRITE #obj, value
+23050   SETPOS #obj, current
+23060 END DEFine OverWrite_W
+23065 :
+23070 DEFine PROCedure Gen_struct (a_sym)
+23080   Gen_a_symbol mem500, a_sym, RP_ADDR
+23090 END DEFine Gen_struct
+23095 :
+23100 DEFine PROCedure record_line_num (Lnum)
+23110   Gen_a_symbol Lnum_adr, Lnum, RP_ADDR
+23120 END DEFine record_line_num
+23125 :
+23130 DEFine PROCedure Gen_a_symbol (address, a_sym, rp_adr)
+23140 LOCal i
+23150   IF (GENSYMBOL (#obj, address, a_sym, rp_adr) = 0) THEN
+23160     RETurn
+23170   END IF
+23180   IF (address = data_adr) THEN
+23190     i = 20
+23200   ELSE
+23210     i = 200
+23220   END IF
+23230   i = allocate_memory(address, i)
+23240   i = GENSYMBOL (#obj, address, a_sym, rp_adr)
+23250 END DEFine Gen_a_symbol
+23255 :
+23330 DEFine FuNction find_sym (address, a_sym)
+23340 LOCal i
+23350   i = FINDSYMBOL (address, a_sym, RP_ADDR )
+23360   IF (i <> 1) THEN
+23370   RETurn i : END IF
+23380   i = allocate_memory(address, 200)
+23390   RETurn FINDSYMBOL (address, a_sym, RP_ADDR )
+23400 END DEFine find_sym
+23405 :
+23410 DEFine FuNction allocate_memory (address, records)
+23420 LOCal i
+23430 LOCal base
+23440   base = 0
+23450   IF (FREE  > 5000) THEN
+23460     base = ALCHP ((((records * 6) + 12) + 20))
+23470   END IF
+23480   IF (base = 0) THEN
+23490     PRINT #rpt;"OUT of MEMORY ... compile aborted"
+23500     PRINT #rpt;"Work file not deleted"
+23510     error_count = 1
+23520     clean_up
+23530     STOP
+23540   END IF
+23550   IF (address <> 0) THEN
+23560     i = address
+23570     REPeat seek_0
+23580       IF (PEEK_L (i) = 0) THEN
+23590         EXIT seek_0
+23600       END IF
+23610       i = PEEK_L (i)
+23620     END REPeat seek_0
+23630     POKE_L i, base
+23640   END IF
+23650   POKE_L base, 0
+23660   POKE_L (base + 4), (base + ((records * 6) + 12))
+23670   POKE_L (base + 8), (base + 12)
+23680   RETurn base
+23690 END DEFine allocate_memory
+23695 :
+23700 DEFine PROCedure set_start_adr
+23710   INITgen #obj, 0
+23720   GENB 96, 0, 0, 0
+23730   GENB 0, 0, 74, 251
+23740   i = LEN(_name$)
+23750   IF (i > 37) THEN
+23760     i = 37
+23770   END IF
+23780   name__$ = _name$ & FILL$(" ",37+4-i)
+23790   GENW i
+23800   GENtext name__$(1 TO 22)
+23810   GENW 0, 0, 0, 0, 0, 0, 4
+23820   Gen_L 4, 0
+23830   GENW 0, 0, 0, 0, 0, 0
+23840   GENW xpfn8
+23850   GENW 0, 0, 0, 0, 0, 0, 0, 0
+23860   GENB 0, _autof%
+23870   GENW 0, 0, 0
+23880   GENB _nowinds%, 0
+23890   GENW 0, 0, 0, 0
+23900   GENW 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+23910   OverWrite_W (RP_ADDR  - 2), 2
+23920   ext_base = RP_ADDR
+23930   SMEM b1 , PEEK_W ((b1  - 2))
+23940   IF ODD (RP_ADDR ) THEN
+23950     GENB 0
+23960   END IF
+23970   IF (_run% = 1) THEN
+23980     adr236 = PEEK_L ((RA6  + 236))
+23990     w14 = PEEK_W ((adr236 + 14))
+24000     SMEM adr236, w14
+24010   END IF
+24020   GENtext QLIBversion$
+24030   start_adr = RP_ADDR
+24040   OverWrite_L RP_ADDR , 32
+24050 END DEFine set_start_adr
+24055 :
+24060 DEFine PROCedure finishing_up
+24070 LOCal start
+24080 LOCal current
+24090 LOCal i
+24100 LOCal ptr
+24110   IF (In_Defn >= 0) THEN
+24120     program_error 0, 21
+24130     close_structs
+24140   END IF
+24150   IF name_follows_hash THEN
+24160     program_error 0, 17
+24170   END IF
+24180   REPeat check_endifs
+24190     IF (ifs_level% = 0) THEN
+24200       EXIT check_endifs
+24210     END IF
+24220     Gen_End_If
+24230     program_error 0, 11
+24240   END REPeat check_endifs
+24250   FOR i = sels_level% TO 1 STEP -1
+24260     program_error 1, 12
+24270   END FOR i
+24280   GENop 45
+24290   Gen_struct data_struct
+24300   Gen_a_symbol data_adr, 32767, RP_ADDR
+24310   GENop 46
+24320   GENB 3
+24330   Gen_a_symbol Lnum_adr, 32767, RP_ADDR
+24340   GENop 46
+24350   GENB 4
+24360   symbol = mem500
+24370   REPeat store_symbols
+24380     FOR i = (symbol + 12) TO (PEEK_L ((symbol + 8)) - 2) STEP 6
+24390       ptr = PEEK_W (i)
+24400       IF (ptr < 0) THEN
+24410         Gen_struct ABS(ptr)
+24420       END IF
+24430     END FOR i
+24440     symbol = PEEK_L (symbol)
+24450     IF (symbol = 0) THEN
+24460       EXIT store_symbols
+24470     END IF
+24480   END REPeat store_symbols
+24490   GENop 46
+24500   GENB 0
+24510   current = POS (#obj)
+24520   SETPOS #obj, 50
+24530   WWRITE #obj, chans_, buffer_, min512, 0, 0, min128
+24540   SETPOS #obj, current
+24550   OverWrite_L heap_, 56
+24560   OverWrite_W xpfn8, 62
+24570   OverWrite_L stack_, 76
+24580   IF _stat% THEN
+24590     OverWrite_W 256, 80
+24600   END IF
+24610   FOR i = 1 TO asm_files
+24620     IF ODD (RP_ADDR ) THEN
+24630       GENB 0
+24640     END IF
+24650     GENL 0
+24660     IF (asm_start = 0) THEN
+24670       asm_start = (RP_ADDR  - 4)
+24680     ELSE
+24690       OverWrite_L (RP_ADDR  - 4), rpadr_4
+24700     END IF
+24710     rpadr_4 = (RP_ADDR  - 4)
+24720     GENL INIT(i)
+24730     GENL TABLE(i)
+24740     OPEN #erch, asmfile$(i)
+24750     FCOPY #erch, #obj
+24760     CLOSE #erch
+24770     INITgen #obj, POS (#obj)
+24780   END FOR i
+24790   OverWrite_L asm_start, 68
+24800   Gen_symbols Lnum_adr
+24810   Gen_symbols data_adr
+24820   IF ODD (RP_ADDR ) THEN
+24830     GENB 0
+24840   END IF
+24850   IF _noline THEN
+24860     TSORT data_adr
+24870     TSORT Lnum_adr
+24880     i = Lnum_adr
+24890     OverWrite_L RP_ADDR , 40
+24900     REPeat store_data
+24910       FOR ptr = (i + 12) TO (PEEK_L ((i + 8)) - 2) STEP 6
+24920         symbol = PEEK_W (ptr)
+24930         IF (FINDNEXT (data_adr, symbol) = symbol) THEN
+24940           symbol = (symbol + 32768)
+24950         END IF
+24960         GENW symbol
+24970         GENL PEEK_L ((ptr + 2))
+24980       END FOR ptr
+24990       i = PEEK_L (i)
+25000       IF (i = 0) THEN
+25010         EXIT store_data
+25020       END IF
+25030     END REPeat store_data
+25040   END IF
+25050   IF ext_count% THEN
+25060     PRINT #rpt;"Externally called Procedures/Functions"
+25070     Names_base = RP_ADDR
+25080     GENW 8316
+25090     GENL ((ext_base - RP_ADDR ) - 2)
+25100     GENW 20219, 34816
+25110   END IF
+25120   OverWrite_L RP_ADDR , 64
+25130   ptr = 0
+25140   ext_name_base = 0
+25150   FOR i = 1 TO NumNames%
+25160     RNAME name_adr(i), p0%, struct_base%, FOR_ranges%, ExtPFNname$
+25170     unpack
+25180     IF p4% THEN
+25190       LENname = LEN(ExtPFNname$)
+25200       IF p7% THEN
+25210         IF ODD (RP_ADDR ) THEN
+25220           GENB 0
+25230           ptr = (ptr + 1)
+25240         END IF
+25250         PRINT #rpt, ExtPFNname$,
+25260         GENL ext_name_base
+25270         ext_name_base = (RP_ADDR  - 4)
+25280         GENW 2
+25290         IF (p2% = 5) THEN
+25300           GENW 0, 0
+25310           symbol = 0
+25320         ELSE
+25330           symbol = 4
+25340         END IF
+25350         GENW (((7 + symbol) + LENname) + ((LENname + 1) MOD 2))
+25360         GENB LENname
+25370         GENtext ExtPFNname$
+25380         IF ODD (RP_ADDR ) THEN
+25390           GENB 0
+25400           ptr = (ptr + 1)
+25410         END IF
+25420         IF (p2% = 4) THEN
+25430           GENW 0, 0
+25440         END IF
+25450         GENW 0
+25460         GENW 20081
+25470         GENW 10300
+25480         GENL FINDSYMBOL (mem500, struct_base%, start_adr)
+25490         GENW 24576, ((Names_base - RP_ADDR ) - 2)
+25500         ptr = ((ptr + LENname) + 27)
+25510       ELSE
+25520         struct_base% = ptr
+25530         GENB LENname
+25540         GENtext ExtPFNname$
+25550         ptr = ((ptr + LENname) + 1)
+25560         WNAME name_adr(i), p0%, struct_base%
+25570       END IF
+25580     END IF
+25590   END FOR i
+25600   PRINT #rpt
+25610   OverWrite_L ext_name_base, 82
+25620   OverWrite_W ext_count%, 86
+25630   IF ODD (RP_ADDR ) THEN
+25640     GENB 0
+25650   END IF
+25660   IF globals_declared% THEN
+25670     OverWrite_L RP_ADDR , 90
+25680     FOR i = 1 TO NumNames%
+25690       RNAME name_adr(i), p0%
+25700       unpack
+25710       IF p8% THEN
+25720         GENntd i
+25730       END IF
+25740     END FOR i
+25750     GENW -1
+25760   END IF
+25770   OverWrite_L RP_ADDR , 36
+25780   Names_info = 2
+25790   GENB 3
+25800   FOR i = 1 TO NumNames%
+25810     RNAME name_adr(i), p0%, struct_base%, FOR_ranges%, ExtPFNname$
+25820     unpack
+25830     IF p4% THEN
+25840       p4% = 16
+25850     END IF
+25860     ON (p2% + 1) GO TO 25880, 25880, 25880, 25980, 26010, 26010, 26040, 26080, 26160, 26160
+25870     :
+25880     GENB (p1% + p4%)
+25890     IF (p1% = 2) THEN
+25900       Names_info = (Names_info + 6)
+25910     ELSE
+25920       IF (p1% = 3) THEN
+25930         Names_info = (Names_info + 2)
+25940       END IF
+25950     END IF
+25960     GO TO 26170
+25970     :
+25980     GENB ((p1% + 3) + p4%)
+25990     GO TO 26170
+26000     :
+26010     GENB 3
+26020     NEXT i
+26030     :
+26040     GENB (2 + p4%)
+26050     Names_info = (Names_info + 6)
+26060     GO TO 26170
+26070     :
+26080     IF (p1% = 3) THEN
+26090       GENB p4%
+26100     ELSE
+26110       GENB (7 + p4%)
+26120     END IF
+26130     Names_info = (Names_info + 24)
+26140     GO TO 26170
+26150     :
+26160     GENB (8 + p4%)
+26170     IF p4% THEN
+26180       GENint struct_base%
+26190     END IF
+26200   END FOR i
+26210   GENB 255
+26220   IF ODD (RP_ADDR ) THEN
+26230     GENB 0
+26240   END IF
+26250   total_data = ((((((((((512 + buffer_) + (40 * chans_)) + min128) + (NumNames% * 8)) + Names_info) + heap_) + stack_) + 256) + 32) + 512)
+26260   total_data = (total_data + ODD (total_data))
+26270   SETUP #obj, total_data
+26280   OverWrite_L total_data, 72
+26290 END DEFine finishing_up
+26295 :
+26300 DEFine PROCedure Gen_symbols (address)
+26310 LOCal i
+26320 LOCal ptr
+26330 LOCal symbol
+26340   TSORT address
+26350   REPeat data_lp
+26360     ptr = FINDNEXT (address, 32768)
+26370     IF (ptr < 0) THEN
+26380       EXIT data_lp
+26390     END IF
+26400     symbol = (65536 - ptr)
+26410     i = FINDNEXT (address, symbol)
+26420     IF (i < 0) THEN
+26430       EXIT data_lp
+26440     END IF
+26450     i = FINDSYMBOL (address, i, RP_ADDR )
+26460     i = GENSYMBOL (#obj, address, symbol, (i + RP_ADDR ))
+26470   END REPeat data_lp
+26480 END DEFine Gen_symbols
+26485 :
+26490 DEFine PROCedure clean_up
+26500   recover_memory mem500
+26510   recover_memory Lnum_adr
+26520   recover_memory data_adr
+26530   IF (name_table <> 0) THEN
+26540     RECHP name_table
+26550   END IF
+26560   IF error_count THEN
+26570     DELETE _obj$
+26580   END IF
+26590   IF NOT (sav_file%) THEN
+26600     DELETE base$ & "_wrk"
+26610   END IF
+26620 END DEFine clean_up
+26625 :
+26630 DEFine PROCedure close_channels
+26640   CLOSE #wrk
+26650   CLOSE #obj
+26660   CLOSE #rpt
+26670 END DEFine close_channels
+26675 :
+26680 DEFine PROCedure recover_memory (address)
+26690 LOCal i
+26700 LOCal ptr
+26710   IF (address = 0) THEN
+26720   RETurn  : END IF
+26730   i = address
+26740   REPeat link
+26750     ptr = PEEK_L (i)
+26760     RECHP i
+26770     IF (ptr = 0) THEN
+26780       EXIT link
+26790     END IF
+26800     i = ptr
+26810   END REPeat link
+26820 END DEFine recover_memory
+26825 :
+26830 DATA 0, 5, 5, 6,  6,  4,  4,  4,  4,  4,  4,  4,  1,  2,  1,  7,  9
+26840 DATA 1, 2, 1, 6,  6,  8, 10,  0,  3,  3
+26850 DATA 0, 5, 5, 6,  6,  4,  4,  4,  4,  4,  4,  4,  1,  2,  1,  7,  9
+26860 DATA 1, 2, 1, 6,  6,  8, 10,  0, 11, 11
+26870 DATA 5, 6, 7, 8, 41, 39, 43, 37, 38, 42, 40, 30, 29, 31, 24, 33, 26, 25, 27, 35, 36, 34, 10, 0, 32, 28
+26875 :
+26880 DEFine PROCedure initialise_qlist_vars
+26890   qlist$ = QLIB_LIST$
+26900   wA = "0" & qlist$(71 TO 74)
+26910   wD = "0" & qlist$(79 TO 82)
+26920   DIM panel_control%(20)
+26930   DIM win_info$(6, 41)
+26940   FOR i = 90 TO 95
+26950     panel_control%((i - 83)) = "0" & qlist$(i)
+26960   END FOR i
+26970   FOR i = 96 TO 97
+26980     panel_control%((i - 80)) = "0" & qlist$(i)
+26990   END FOR i
+27000   panel_control%(13) = "0" & qlist$(98)
+27010   _scr_$ = "-----     SCREEN     -----"
+27020   win_info$(3) = _scr_$
+27030   win_info$(5) = stripped_space$(qlist$(41 TO 66))
+27040   FOR i = 5 TO 6
+27050     IF (win_info$(i, 1) = " ") THEN
+27060       win_info$(i) = ""
+27070     END IF
+27080   END FOR i
+27090 END DEFine initialise_qlist_vars
+27095 :
+27110 DEFine FuNction stripped_space$ (word$)
+27120 LOCal a
+27130 LOCal z
+27140   IF word$ = FILL$(" ",LEN(word$)) : RETurn ""
+27150   FOR a = 1 TO LEN(word$)
+27160     IF word$(a)<>" " : EXIT a
+27170   END FOR a
+27180   FOR z = LEN(word$) TO a STEP -1
+27190     IF word$(z)<>" " : EXIT z
+27200   END FOR z
+27210   RETurn word$(a TO z)
+27220 END DEFine stripped_space$
+27235 :
+27240 DEFine PROCedure do_qlib_use
+27250   FOR i = 7 TO 12
+27260     qlist$((i + 83)) = panel_control%(i)
+27270   END FOR i
+27280   FOR i = 16 TO 17
+27290     qlist$((i + 80)) = panel_control%(i)
+27300   END FOR i
+27310   qlist$(98) = panel_control%(13)
+27311   IF  wA > 140  OR  wD > 255
+27312     x = wA : IF x > 140 : x = 140 : REMark assumes ww = 512   - 372 = 140
+27313     y = wD : IF y > 255 : y = 255 : REMark assumes wh = 256
+27314     QLIB_USE , , x, y, qlist$(90 TO 99) : REMark closest possible
+27315   END IF
+27316   Q_ERR_ON "QLIB_USE" : REMark avoid error message outside 512x256
+27317   QLIB_USE , , wA, wD, qlist$(90 TO 99)
+27320   Q_ERR_OFF "QLIB_USE"
+27330 END DEFine do_qlib_use
+27335 :
+27340 DEFine PROCedure console_setup
+27350   DIM win_dat%(18, 9)
+27360   DIM help_word$(18, 12)
+27370   RESTORE 32330
+27380   READ ww
+27390   READ wh
+27400   console_onscreen
+27410   OPEN #console;"con_512x256a0x0" : WINDOW #console, SCRXLIM, SCRYLIM, 0, 0
+27420   IF (RMODE  = 8) THEN
+27430   MODE 4 : END IF
+27440   PE = pointer_environment
+27450   IF PE THEN
+27460     WM_Outln #console, ww, wh, wA, wD, 5, 5
+27470   ELSE
+27480     WINDOW #console, ww, wh, (wA + 4), (wD + 4)
+27490     BORDER #console, 6, _TICOL
+27500   END IF
+27510 END DEFine console_setup
+27515 :
+27520 DEFine FuNction Interactive (channel)
+27530   console_data channel
+27540   IF PE THEN
+27550     RETurn mouse_click
+27560   ELSE
+27570     RETurn keypress
+27580   END IF
+27590 END DEFine Interactive
+27595 :
+27600 DEFine PROCedure console_data (channel)
+27610   copyright_banner
+27620   command$ = ""
+27630   SELect ON channel
+27640   ON channel = 1
+27645     RESTORE 32340
+27650     READ command$
+27660     RESTORE 32100
+27670   ON channel = 2
+27675     RESTORE 32280
+27680   ON channel = 3
+27685     RESTORE 32470
+27690   END SELect
+27700   READ panels
+27710   FOR i = 1 TO panels
+27720     FOR ptr = 0 TO 9
+27730       READ win_dat%(i, ptr)
+27740     END FOR ptr
+27750     READ help_word$(i)
+27760   END FOR i
+27770   SELect ON channel
+27780   ON channel = 1
+27785     RESTORE 32350
+27790   ON channel = 2
+27795     RESTORE 32410
+27800   ON channel = 3
+27805     RESTORE 32430
+27810   END SELect
+27820   console_windows
+27830 END DEFine console_data
+27835 :
+27840 DEFine PROCedure copyright_banner
+27850   console_colour
+27860   CLS #console
+27870   CSIZE #console, 3, 1
+27880   CURSOR #console, 90, 12
+27890   PRINT #console;"Q_Liberator";
+27900   CSIZE #console, 0, 0
+27910   CURSOR #console, 0, 0
+27920   PRINT #console;"   Copyright 1993 Liberation Software        Release " & QLIBversion$
+27922   CURSOR #console, 0, 0
+27924   PRINT #console;"   The Sinclair QL Forum Edition 2020        Release " & QLIBversion$
+27930 END DEFine copyright_banner
+27935 :
+27940 DEFine PROCedure console_colour
+27950   WINDOW #console, ww, wh, wA, wD
+27960   PAPER #console, _BPCOL
+27970   INK #console, _TICOL
+27980   BORDER #console, 1, _TICOL
+27990 END DEFine console_colour
+27995 :
+28000 DEFine PROCedure console_windows
+28010 LOCal k
+28020   CSIZE #console, 0, 0
+28030   READ ptr
+28040   FOR i = 1 TO ptr
+28050     READ x%
+28060     READ y%
+28070     READ con_info$
+28080     CURSOR #console, x%, y%
+28090     PRINT #console;con_info$;
+28100   END FOR i
+28110   INK #console, 7
+28120   FOR i = 1 TO panels
+28130     k = i
+28140     WINDOW #console, win_dat%(k, 0), win_dat%(k, 1), (wA + win_dat%(k, 2)), (wD + win_dat%(k, 3))
+28150     display_window _BPCOL
+28160   END FOR i
+28170 END DEFine console_windows
+28175 :
+28180 DEFine FuNction keypress
+28190 LOCal kpress
+28200   k = 1
+28210   REPeat user_action
+28220     wait_for_a_press 1
+28230     act = CODE(word$)
+28240     kpress = actions
+28250     display_window _BPCOL
+28260     IF kpress THEN
+28270       RETurn kpress
+28280     END IF
+28290   END REPeat user_action
+28300 END DEFine keypress
+28305 :
+28310 DEFine PROCedure wait_for_a_press (color)
+28320 LOCal x%
+28330 LOCal y%
+28340 LOCal Rkey%
+28350   IF PE THEN
+28360     x% = 0
+28370     y% = 0
+28380     Rkey% = 0
+28390     WM_Rptr #console, 2, x%, y%, Rkey%
+28400     word$ = CHR$(Rkey%)
+28410   ELSE
+28420     REPeat wait_for_inkey
+28430       IF color THEN
+28440         window_size _CUCOL , k
+28450       END IF
+28460       word$ = INKEY$ (#console, 50)
+28470       IF (word$ <> "") THEN
+28480         EXIT wait_for_inkey
+28490       END IF
+28500       IF (Tqueue (#console) = 0) THEN
+28510         IF color THEN
+28520           window_size _BPCOL , k
+28530         END IF
+28540         CURSEN #console
+28550         REPeat loop
+28560           PAUSE 20
+28570           IF Tqueue (#console) THEN
+28580             CURDIS #console
+28590             EXIT loop
+28600           END IF
+28610         END REPeat loop
+28620       END IF
+28630     END REPeat wait_for_inkey
+28640     IF color THEN
+28650       window_size _BPCOL , k
+28660     END IF
+28670   END IF
+28680   IF panel_control%(16) THEN
+28690     BEEP 50, 10
+28700   END IF
+28710 END DEFine wait_for_a_press
+28715 :
+28720 DEFine FuNction actions
+28730 LOCal index
+28740   index = 0
+28750   SELect ON act
+28760   ON act =  27 : RETurn 2
+28770   ON act =  32 : index = panel_actions(k)
+28780   ON act = 192 : k = win_dat%(k, 4)
+28790   ON act = 200 : k = win_dat%(k, 5)
+28800   ON act = 208 : k = win_dat%(k, 6)
+28810   ON act = 216 : k = win_dat%(k, 7)
+28820   ON act = 232 : F1_pressed k
+28830   ON act = 244 : CLOSE #console
+28840     console_setup
+28850     console_data channel
+28860   ON act = REMAINDER : index = (CHR$(act) INSTR command$)
+28870     IF index THEN
+28880       index = panel_actions(index)
+28890     END IF
+28900   END SELect
+28910   RETurn index
+28920 END DEFine actions
+28925 :
+28930 DEFine FuNction panel_actions (k)
+28940 LOCal i
+28950   i = 0
+28960   IF (win_dat%(k, 8) = 0) THEN
+28970     IF panel_control%(k) THEN
+28980       panel_control%(k) = 0
+28990       display_window _BPCOL
+29000     ELSE
+29010       panel_control%(k) = 1
+29020       display_window _BPCOL
+29030       SELect ON channel = 1 : i = screen_actions(0) : END SELect
+29040       display_window _BPCOL
+29050     END IF
+29060   ELSE
+29070     SELect ON channel = 1 : check_win 1 : END SELect
+29080     edit_panel
+29090     SELect ON channel = 1 : i = screen_actions(1) : END SELect
+29100   END IF
+29110   RETurn i
+29120 END DEFine panel_actions
+29125 :
+29130 DEFine PROCedure check_win (class)
+29140   SELect ON k
+29150   ON k = 3 : IF (win_info$(3, 1) = "-") THEN
+29160       win_info$(3) = ""
+29170     END IF
+29180     display_window _CUCOL
+29190   END SELect
+29200 END DEFine check_win
+29205 :
+29210 DEFine FuNction screen_actions (class)
+29220   IF (class = 0) THEN
+29230     SELect ON k
+29240     ON k = 5 : RETurn 2
+29250     ON k = 6 : F1_pressed k
+29260     ON k = 14 : move_front_panel
+29270       panel_control%(k) = 0
+29280     ON k = 15 : IF LEN(win_info$(1)) THEN
+29290         build_cmd
+29300         RETurn 1
+29310       ELSE
+29320         panel_control%(k) = 0
+29330       END IF
+29340     END SELect :
+29350   ELSE
+29360     SELect ON k
+29370     ON k = 3 : check_scr_report
+29380     ON k = 1 : show_windows
+29390     END SELect
+29400   END IF
+29410   RETurn 0
+29420 END DEFine screen_actions
+29425 :
+29430 DEFine FuNction mouse_click
+29440 LOCal kk%
+29450 LOCal kpress
+29460 LOCal xx%
+29470 LOCal yy%
+29480   xx% = 0
+29490   yy% = 0
+29500   Rkey% = 0
+29510   kk% = 0
+29520   REPeat user_action
+29530     WM_Rptr #console, 11, xx%, yy%, Rkey%
+29540     yy% = (yy% + 1)
+29550     xx% = (xx% + 1)
+29560     k = Fwind (xx%, yy%, panels, win_dat%)
+29570     IF Rkey% THEN
+29580       IF ((Rkey% >= 192) AND (Rkey% <= 216)) THEN
+29590         Rkey% = 0
+29600       END IF
+29610       IF ((Rkey% = 1) OR (Rkey% = 2)) THEN
+29620         Rkey% = 32
+29630       END IF
+29640       act = Rkey%
+29650     END IF
+29660     IF (k > 0) THEN
+29670       IF ((kk% <> k) AND (kk% <> 0)) THEN
+29680         window_size _BPCOL , kk%
+29690         kk% = 0
+29700       END IF
+29710       IF (kk% = 0) THEN
+29720         window_size _CUCOL , k
+29730         kk% = k
+29740       END IF
+29750       IF Rkey% THEN
+29760         kpress = actions
+29770         display_window 4
+29780         WM_Sptr #console, (xx% - 1), (yy% - 1)
+29790         IF kpress THEN
+29800           RETurn kpress
+29810         END IF
+29820       END IF
+29830     ELSE
+29840       IF Rkey% THEN
+29850         IF (Rkey% <> 32) THEN
+29860           kpress = actions
+29870           IF kpress THEN
+29880             RETurn kpress
+29890           END IF
+29900         END IF
+29910       END IF
+29920       IF kk% THEN
+29930         window_size _BPCOL , kk%
+29940         kk% = 0
+29950       END IF
+29960     END IF
+29970   END REPeat user_action
+29980 END DEFine mouse_click
+29985 :
+29990 DEFine PROCedure show_windows
+30000 LOCal k
+30010   full_names win_info$(1), win_info$(2), win_info$(4)
+30020   IF LEN(win_info$(1)) THEN
+30030     FOR k = 1, 2, 4
+30040       display_window _BPCOL
+30050     END FOR k
+30060   END IF
+30070 END DEFine show_windows
+30075 :
+30080 DEFine PROCedure check_scr_report
+30090   IF (win_info$(3, 1 TO 3) INSTR "scrcon") THEN
+30100     win_info$(3) = _scr_$
+30110   END IF
+30120 END DEFine check_scr_report
+30125 :
+30130 DEFine FuNction pointer_environment
+30140 LOCal x%
+30150 LOCal y%
+30160 LOCal Rkey%
+30170   x% = 0
+30180   y% = 0
+30190   Rkey% = 0
+30200   Q_ERR_ON "wm_rptr"
+30210   WM_Rptr #console, 48, x%, y%, Rkey%
+30220   IF Q_ERR  THEN
+30230     RETurn 0
+30240   ELSE
+30250     RETurn 1
+30260   END IF
+30270 END DEFine pointer_environment
+30275 :
+30280 DEFine PROCedure F1_pressed (err_num)
+30290 LOCal hword$
+30300 LOCal t
+30310   panel_control%(6) = 0
+30320   IF (err_num < 1) THEN
+30330     hword$ = "help"
+30340   ELSE
+30350     hword$ = help_word$(err_num)
+30360   END IF
+30370   OPEN #erch;win_info$(5) & helpfile$
+30380   console_data 3
+30390   IF (Q_ERR  <> 0) THEN
+30400     PRINT #console;"NO HELP AVAILABLE - " & win_info$(5) & helpfile$ & " file not found"
+30410   ELSE
+30420     hword$ = hword$ & ":"
+30430     REPeat find_hword
+30440       IF EOF (#erch) THEN
+30450         EXIT find_hword
+30460       END IF
+30470       INPUT #erch;help_line$
+30480       t = (hword$ INSTR help_line$)
+30490       IF t THEN
+30500         EXIT find_hword
+30510       END IF
+30520     END REPeat find_hword
+30530     FOR t = 1 TO 7
+30540       PRINT #console;help_line$
+30550       IF EOF (#erch) THEN
+30560         EXIT t
+30570       END IF
+30580       INPUT #erch;help_line$
+30590     END FOR t
+30600     CLOSE #erch
+30610   END IF
+30620   wait_for_a_press 0
+30630   console_data channel
+30640 END DEFine F1_pressed
+30645 :
+30650 DEFine PROCedure move_front_panel
+30660 LOCal x%
+30670 LOCal y%
+30680 LOCal Rkey%
+30690 LOCal key
+30700   x% = ((wA + 330) / 6)
+30710   y% = ((wD + 13) / 10)
+30720   Rkey% = 0
+30730   IF PE THEN
+30740     x% = 330
+30750     y% = 13
+30760     WM_Sptr #console, x%, y%
+30770     WM_Rptr #console, 129, x%, y%, Rkey%
+30780   ELSE
+30790     OPEN #erch;"con_512x256a0x0" : WINDOW #erch, SCRXLIM, SCRYLIM, 0, 0
+30800     REPeat loop
+30810       CURDIS #erch
+30820       AT #erch, y%, x%
+30830       CURSEN #erch
+30840       key = CODE(INKEY$ (#erch, -1))
+30850       SELect ON key
+30860       ON key = 192 : IF (x% > 0) THEN
+30870           x% = (x% - 1)
+30880         END IF
+30890       ON key = 200 : IF (x% < SCRXLIM DIV 6 - 1) THEN
+30900           x% = (x% + 1)
+30910         END IF
+30920       ON key = 208 : IF (y% > 0) THEN
+30930           y% = (y% - 1)
+30940         END IF
+30950       ON key = 216 : IF (y% < SCRYLIM DIV 10 - 1) THEN
+30960           y% = (y% + 1)
+30970         END IF
+30980       ON key = 10, 32 :
+30990         EXIT loop
+31000       END SELect
+31010     END REPeat loop
+31020     CLOSE #erch
+31030     console_clear
+31040     x% = (x% * 6)
+31050     y% = (y% * 10)
+31060   END IF
+31070   wA = (x% - (ww - 34))
+31080   wD = (y% - 13)
+31090   console_onscreen
+31100   CLOSE #console
+31110   console_setup
+31120   console_data channel
+31130   panel_control%(k) = 0
+31140 END DEFine move_front_panel
+31145 :
+31150 DEFine PROCedure console_onscreen
+31160   IF (wA < 0) THEN
+31170     wA = 0
+31180   END IF
+31190   IF (wA > (SCRXLIM - (ww + 8))) THEN
+31200     wA = (SCRXLIM - (ww + 8))
+31210   END IF
+31220   IF (wD < 0) THEN
+31230     wD = 0
+31240   END IF
+31250   IF (wD > (SCRYLIM - (wh + 8))) THEN
+31260     wD = (SCRYLIM - (wh + 8))
+31270   END IF
+31280 END DEFine console_onscreen
+31285 :
+31290 DEFine PROCedure console_clear
+31300   IF PE THEN
+31310     RETurn
+31320   END IF
+31330   WINDOW #console, (ww + 4), (wh + 4), wA, wD
+31340   PAPER #console, 0
+31350   CLS #console
+31360 END DEFine console_clear
+31365 :
+31370 DEFine PROCedure edit_panel
+31380 LOCal word$
+31390   PAPER #console, 0
+31400   CSIZE #console, 0, 0
+31410   window_size _TICOL , k
+31420   PRINT #console;" ";
+31430   word$ = win_info$(win_dat%(k, 8))
+31440   input_edit$ #console, 38, word$
+31450   win_info$(win_dat%(k, 8)) = word$
+31460   window_size _CUCOL , k
+31470 END DEFine edit_panel
+31475 :
+31480 DEFine PROCedure window_size (win_colour, k)
+31490   WINDOW #console, win_dat%(k, 0), win_dat%(k, 1), (wA + win_dat%(k, 2)), (wD + win_dat%(k, 3))
+31500   BORDER #console, 1, win_colour
+31510 END DEFine window_size
+31515 :
+31520 DEFine PROCedure display_window (win_colour)
+31530 LOCal papcol
+31540   window_size win_colour, k
+31550   IF (win_dat%(k, 8) <> 0) THEN
+31560     CSIZE #console, win_dat%(k, 9), 0
+31570     PAPER #console, _DICOL
+31580     CLS #console
+31590     PRINT #console;" ";win_info$(win_dat%(k, 8));
+31600   ELSE
+31610     IF panel_control%(k) THEN
+31620       papcol = _SICOL
+31630     ELSE
+31640       papcol = _DICOL
+31650     END IF
+31660     PAPER #console, papcol
+31670     IF ((win_dat%(k, 9) >= 0) OR NOT (PE)) THEN
+31680       CSIZE #console, ABS(win_dat%(k, 9)), 0
+31690       CLS #console
+31700       PRINT #console;" ";help_word$(k);
+31710     ELSE
+31720       CLS #console
+31730       WM_wrsp #console, INT((win_dat%(k, 0)/2)),(INT((win_dat%(k, 1)/2))-2), 6
+31740     END IF
+31750   END IF
+31760 END DEFine display_window
+31765 :
+31770 DEFine PROCedure build_cmd
+31780 LOCal state
+31790 LOCal optn$
+31800 LOCal ptr
+31810   RESTORE 32300
+31820   panel_control%(15) = 0
+31830   CMD$ = win_info$(1) & " "
+31840   FOR i = 4, 7 TO 13, 16 TO 17
+31850     READ state
+31860     READ optn$
+31870     ptr = win_dat%(i, 8)
+31880     IF (ptr = 0) THEN
+31890       IF (panel_control%(i) = state) THEN
+31900         CMD$ = CMD$ & optn$ & " "
+31910       END IF
+31920     ELSE
+31930       IF (win_info$(ptr) <> "") THEN
+31940         CMD$ = CMD$ & optn$ & " " & win_info$(ptr) & " "
+31950       END IF
+31960     END IF
+31970   END FOR i
+31980   optn$ = win_info$(2)
+31990   ptr = LEN(optn$)
+32000   CMD$ = CMD$ & "-obj "
+32010   IF ((ptr > 4) AND (optn$((ptr - 3) TO ptr) == "_obj")) THEN
+32020     CMD$ = CMD$ & optn$(1 TO (ptr - 4))
+32030   ELSE
+32040     CMD$ = CMD$ & optn$
+32050   END IF
+32060   IF (win_info$(3, 1) <> "-") THEN
+32070     CMD$ = CMD$ & " -list " & win_info$(3)
+32080   END IF
+32090 END DEFine build_cmd
+32095 :
+32100 DATA  17
+32110 DATA 266, 13,  94,  69,  1,  1, 15,  2, 1,  0, "source file"
+32120 DATA 266, 13,  94,  82,  2,  2,  1,  3, 2,  0, "object file"
+32130 DATA 266, 13,  94,  95,  3,  3,  2,  4, 3,  0, "report file"
+32140 DATA 266, 13,  94, 108,  4,  4,  3,  4, 4,  0, "job name"
+32150 DATA  60, 13,   4,  13,  5, 14,  5,  6, 0,  1, "QUIT"
+32160 DATA  60, 13,   4,  26,  6, 13,  5,  7, 0,  1, "HELP"
+32170 DATA  60, 13,   4,  39,  7,  8,  6, 17, 0,  1, "Stats"
+32180 DATA  60, 13,  64,  39,  7,  9,  8, 15, 0,  1, "Debug"
+32190 DATA  60, 13, 124,  39,  8, 10,  9, 15, 0,  1, "Lines"
+32200 DATA  60, 13, 184,  39,  9, 11, 10, 15, 0,  1, "Names"
+32210 DATA  56, 13, 244,  39, 10, 12, 11, 15, 0,  1, " Run"
+32220 DATA  60, 13, 300,  39, 11, 12, 13, 16, 0,  1, "Auto"
+32230 DATA  60, 13, 300,  26,  6, 13, 14, 12, 0,  1, "Trace"
+32240 DATA  60, 13, 300,  13,  5, 14, 14, 13, 0, -1, "Move"
+32250 DATA 120, 13, 124,  54, 17, 16,  9,  1, 0,  2, "Compile"
+32260 DATA  60, 13, 300,  54, 15, 16, 12,  1, 0,  1, "Beep"
+32270 DATA  60, 13,   4,  54, 17, 15,  7,  1, 0,  1, "Winds"
+32280 DATA 1
+32290 DATA  37, 12, 322,  20,  1,  1,  1,  1, 0,  0, ""
+32300 DATA 0, "-name"
+32310 DATA 1, "-stat", 1, "-debug", 0, "-noline"
+32320 DATA 0, "-nonames", 1, "-run", 1, "-autof", 1, "-trace", 0, "-nobeep", 0, "-nowinds"
+32330 DATA 364, 138
+32340 DATA " O J  SDLNRAT" & CHR$(245) & "CBW "
+32350 DATA 5
+32360 DATA 4,  69, "Source file"
+32370 DATA 4,  82, "Object file"
+32380 DATA 4,  95, "Report file"
+32390 DATA 4, 108, "Job name"
+32400 DATA 4, 123, " Press  -  F1 for HELP  -  F4 for REFRESH  -  Esc to QUIT"
+32410 DATA 1
+32420 DATA 290,  20, "Line "
+32430 DATA 3
+32440 DATA 300,  20, "HELP"
+32450 DATA  30,  20, "HELP"
+32460 DATA  90, 123, "Press  -  Space key to continue"
+32470 DATA 1
+32480 DATA 356, 90,   4,  34,  1,  1,  1,  1, 0,  0, ""
+32490 :
+32492 DEFine PROCedure skip_Top_Line_Remark
+32494 LOCal here, skip_colons
+32496   here = LPOS
+32498   REPeat skip_colons
+32500     IF sym1%=3 AND sym2%=2
+32502       Getsym
+32504     ELSE
+32506       EXIT skip_colons
+32508     END IF
+32510   END REPeat skip_colons
+32512   IF sym1%=2 AND sym2%=30
+32514     Parse_key_Remark : RETurn
+32516   END IF
+32518   LSET_POS here
+32520 END DEFine skip_Top_Line_Remark
+32522 :
+32524 DEFine PROCedure detect_screen_limits
+32526 LOCal c, get_x, x, get_y, y
+32528   c = FOPEN("CON_") : x = 510 : y = 255
+32530   Q_ERR_ON "WINDOW"
+32532   REPeat get_x
+32534     x = x+2 : WINDOW #c,x,y,0,0
+32536     IF Q_ERR
+32538       x = x-2 : EXIT get_x
+32540     END IF
+32542   END REPeat get_x
+32544   REPeat get_y
+32546     y = y+1 : WINDOW #c,x,y,0,0
+32548     IF Q_ERR
+32550       y = y-1 : EXIT get_y
+32552     END IF
+32554   END REPeat get_y
+32556   Q_ERR_OFF "WINDOW"
+32558   CLOSE #c : SCRXLIM = x : SCRYLIM = y
+32560 END DEFine detect_screen_limits
+32562 :
+32564 DEFine PROCedure convert_hex_bin_tokens
+32566 LOCal here, s, scan, token, length%, line_num%
+32568   here = FPOS(#wrk)
+32570   IF wrk_sav$ == "_sav" : sav_file% = 1
+32572   IF NOT sav_file% : CLOSE #wrk : OPEN #wrk, base$ & wrk_sav$
+32574   s = here + 2
+32576   REPeat scan
+32578     GET #wrk\s : IF EOF(#wrk) : EXIT scan
+32580     token = CODE(INKEY$(#wrk))
+32582     SELect ON token
+32584     = 132 : REMark symbol
+32586       s = s+2
+32588       token = CODE(INKEY$(#wrk))
+32590       SELect ON token = 2 : Stmt_num% = Stmt_num%+1 : = 10 : s = s+2
+32592     = 136, 138   : s = s+4 : REMark name, integer
+32594     = 240 TO 255 : s = s+6 : REMark float
+32596     = 139, 140 : GET #wrk\(s+2), length% : REMark string, text
+32598                : s = s+4 + length% + (length% MOD 2)
+32600     = 141 : GET #wrk\(s+2),line_num% : Stmt_num% = 1 : s = s+4
+32602           : PRINT #console,line_num%
+32604     = 208 TO 239 : REMark hex bin tokens
+32606       IF sav_file%
+32608         PRINT #rpt, "Line"!line_num%;",";Stmt_num%;" ";
+32610         IF token < 224 : PRINT #rpt,"%"; : ELSE PRINT #rpt,"$";
+32612         PRINT #rpt, " needs a _wrk file  - not _sav"
+32614         error_count = (error_count + 1)
+32616       ELSE
+32618         GET #wrk\s : PRINT #wrk, CHR$((token || 240));
+32620         REMark convert to float
+32622       END IF
+32624       s = s+6
+32626     = REMAINDER : s = s+2
+32628     END SELect
+32630   END REPeat scan
+32632   IF NOT sav_file% : CLOSE #wrk : OPEN_IN #wrk, base$ & wrk_sav$
+32634   GET #wrk\here
+32636 END DEFine convert_hex_bin_tokens

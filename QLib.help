@@ -1,0 +1,178 @@
+Version 3.32
+HELP:
+
+ When OFF, an item has a black background, when ON, red.
+ An item is selected by moving the cursor over it and
+ hitting SPACE or by  typing the first letter of the name
+ within (lower case items only). To get HELP about an
+ item just move the cursor over it and press F1.
+
+QUIT:
+
+ This will exit the program and update the QLIB_USE
+ parameters with the current options and screen position.
+
+
+
+Debug:
+
+ When ON, the $$off directive is suppressed and all
+ statements in the program are compiled.
+
+ When OFF, statements between $$off and $$on are ignored.
+
+Stats:
+
+ When ON, statistics regarding memory usage are always
+ printed when a program halts. This lets you see how
+ much heap and stack are actually required.
+ When OFF, statistics are only printed if the program
+ stops with an error.
+
+Source file:
+
+ Enter the name of the file to be compiled. This must
+ be either a Q_Liberator work file or a file produced
+ by QSAVE. The extensions _wrk or _sav should not be
+ entered unless you want to force the compiler to
+ compile from a QSAVEd file.
+
+Object file:
+
+ This is the name which will be given to the compiled
+ program. It defaults automatically to end in _obj when
+ the source file name is entered, but can be changed
+ to another name if required.
+
+Report file:
+
+ If you want to divert the report which the compiler
+ produces to another device, enter its name here.
+ eg SER1 or MDV1_LIST
+
+
+Job name:
+
+ The name of the job as it will be displayed by the
+ QJ command can be entered here. It defaults auto-
+ matically when the source file name is entered.
+
+
+Compile:
+
+ This will start Q_Liberator compiling the specified
+ source file with the selected options. If no file name
+ has been specified then the compiler will refuse to
+ start.
+
+
+Lines:
+
+ When ON, a line number table is included in the program
+ and any error messages will print the bad line number.
+ When OFF, the program will be 6 bytes/line smaller, but
+ error messages less useful. If calculated GO TOs or
+ RESTOREs or ERLIN is used, this option is always ON.
+
+Names:
+
+ When ON, the names of all variables which are passed to
+ machine code extensions are included, permitting you to
+ omit quotes around file or device names.  eg OPEN #3,con_
+ When OFF, programs will be shorter, but names must
+ always be in quotes. eg OPEN #3,'con_' 
+
+ Run:
+
+ When ON the compiled program will have its own copy
+ of the runtime system permanently linked to it, and
+ will be correspondingly larger.
+ When OFF, the runtime system QLIB_RUN must be memory
+ resident before the program can be executed.
+
+Auto:
+
+ When ON, all FOR loops will use integer arithmetic
+ wherever possible, making many programs run much faster.
+
+ When OFF, all FOR loops will use floating point
+ arithmetic, except where DEF_INTEGER has been used.
+
+Beep:
+
+ When ON, all cursor movement is accompanied by an
+ annoying click. More usefully, your attention is
+ drawn to compiler errors and warnings by a Beep.
+
+ When OFF, all is quiet.
+
+
+Winds:
+
+ When ON, the standard windows #0,#1 and #2 will be
+ open when the program starts.
+
+ When OFF, the compiled program must open all its own
+ windows. Winds is best switched off when QRAM is used.
+
+MOVE:
+
+ This command lets you reposition this job's windows
+ to another part of the screen. Just move the cursor
+ which appears to the appropriate position and press
+ ENTER. The new position becomes the default when the
+ compiler is exited with Quit.
+
+Patch:
+
+ Select Patch when you are satisfied with the values and
+ options set. It commits the changes to the object file.
+
+
+
+Heap:        Input range  32 to 512k   (even)
+
+ The heap area is used for dynamic data i.e. strings and
+ arrays. It is automatically allocated as required, but
+ setting an adequate initial value avoids unnecessary
+ heap fragmentation.
+
+Channels:    Input range 3 to 99
+
+ This parameter reserves channel table space in the job.
+ It should be at least as large as the highest channel
+ in the program + 1. Making the channel table too small
+ will cause the QL to crash.
+
+Buffer:      2 to 32k     (even)
+
+ The input buffer size for JS and later ROMS can be
+ specified here. A large size is necessary if long strings
+ are to be read in an INPUT statement.
+
+
+Stack:      128 to 32k    (even) 
+
+ The stack requirements of a program are best determined
+ by specifying a large value and observing the actual
+ usage with the  statistics option on. The runtime system
+ cannot guarantee to trap all errors caused by
+ insufficient stack.
+
+Filename:
+
+ Enter the name of the Release 3 object file to be
+ patched. The '_obj' extension must be included.
+
+
+
+Trace:
+
+ When Trace is ON statement separators are inserted in
+ the object code. Then if an error is reported the 
+ error console will show the statement number after 
+ the line number. In the future this option will
+ support the Q_Liberator debugger.
+
+           
+* No help available *

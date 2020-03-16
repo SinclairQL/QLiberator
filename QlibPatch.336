@@ -1,0 +1,732 @@
+100 REMark Decompiled QLIB_PATCH_OBJ Version 3.35
+110 REMark 10/01/2020                             vars renamed 01/03/2020
+111 REMark $$asmb=flp1_QLibPatch1_BIN,0,14
+112 REMark $$asmb=flp1_QLibPatch2_BIN,0,10
+113 REMark $$asmb=flp1_QLibPatch3_BIN,0,14
+114 REMark $$asmb=flp1_QLibPatch4_BIN,0,10
+115 REMark $$heap=2048
+116 REMark $$stak=800
+117 REMark $$chan=5
+118 REMark $$buff=128
+119 REMark $$i
+120 REMark                                        New version 3.36 begun 01/03/2020
+130 main
+140 STOP
+150 DEFine PROCedure main
+160   QLIBversion$ = "3.36"                       : REMark Release date: 15/03/2020
+170   console = 3
+180   rpt = 4
+185   detect_screen_limits : REMark gets SCRXLIM, SCRYLIM
+190   all_correct = 0
+200   QLIB_area = ALCHP(64) : POKE_L (224 + RA6 ), QLIB_area
+210   initialise_qlist_vars
+220   console_setup
+230   helpfile$ = _HELPF
+232   IF PE THEN
+236     WM_Sptr #console, (ww / 2), (wh / 2 + 20) : REMark Filename
+238   END IF
+240   a = Interactive(1)
+242   do_qlib_use
+245   RECHP QLIB_area
+250 END DEFine main
+255 :
+260 DEFine PROCedure console_setup
+270   DIM win_dat%(18, 9)
+280   DIM help_word$(18, 12)
+290   RESTORE 5920
+300   READ ww
+310   READ wh
+315   console_onscreen
+320   OPEN #console;"con_512x256a0x0" : WINDOW #console, SCRXLIM, SCRYLIM, 0, 0
+330   IF (RMODE  = 8) THEN
+340     MODE 4
+350   END IF
+360   PE = pointer_environment
+370   IF PE THEN
+380     WM_Outln #console, ww, wh, wA, wD, 5, 5
+390   ELSE
+400     WINDOW #console, ww, wh, (wA + 4), (wD + 4)
+410     BORDER #console, 6, _TICOL
+420   END IF
+430 END DEFine console_setup
+435 :
+440 DEFine FuNction Interactive (channel)
+450   console_data channel
+460   IF PE THEN
+470     RETurn mouse_click
+480   ELSE
+490     RETurn keypress
+500   END IF
+510 END DEFine Interactive
+515 :
+520 DEFine PROCedure console_data (channel)
+530   copyright_banner
+540   command$ = ""
+550   SELect ON channel
+560   ON channel = 1 : RESTORE 5930
+570     READ command$
+580     RESTORE 5760
+590   ON channel = 2 : RESTORE 6040
+600   END SELect
+610   READ panels
+620   FOR a = 1 TO panels
+630     FOR b = 0 TO 9
+640       READ win_dat%(a, b)
+650     END FOR b
+660     READ help_word$(a)
+670   END FOR a
+680   SELect ON channel
+690   ON channel = 1 : RESTORE 5940
+700   ON channel = 2 : RESTORE 6000
+710   END SELect
+720   console_windows
+730 END DEFine console_data
+735 :
+740 DEFine PROCedure copyright_banner
+750   console_colour
+760   CLS #console
+770   CSIZE #console, 3, 1
+780   CURSOR #console, 90, 12
+790   PRINT #console;"QLIB  Patch";
+800   CSIZE #console, 0, 0
+810   CURSOR #console, 0, 0
+820   PRINT #console;"   Copyright 1991 Liberation Software        Release " & QLIBversion$
+822   CURSOR #console, 0, 0
+824   PRINT #console;"   The Sinclair QL Forum Edition 2020        Release " & QLIBversion$
+830 END DEFine copyright_banner
+835 :
+840 DEFine PROCedure console_colour
+850   WINDOW #console, ww, wh, wA, wD
+860   PAPER #console, _BPCOL
+870   INK #console, _TICOL
+880   BORDER #console, 1, _TICOL
+890 END DEFine console_colour
+895 :
+900 DEFine PROCedure console_windows
+910 LOCal i
+920   CSIZE #console, 0, 0
+930   READ b
+940   FOR a = 1 TO b
+950     READ x%
+960     READ y%
+970     READ con_info$
+980     CURSOR #console, x%, y%
+990     PRINT #console;con_info$;
+1000   END FOR a
+1010   INK #console, _TICOL
+1020   FOR i = 1 TO panels
+1030     WINDOW #console, win_dat%(i, 0), win_dat%(i, 1), (wA + win_dat%(i, 2)), (wD + win_dat%(i, 3))
+1040     display_window _BPCOL
+1050   END FOR i
+1060 END DEFine console_windows
+1065 :
+1070 DEFine FuNction keypress
+1080 LOCal kpress
+1090   i = 1
+1100   REPeat user_action
+1110     wait_for_a_press 1
+1120     act = CODE(word$)
+1130     kpress = actions
+1140     display_window _BPCOL
+1150     IF kpress THEN
+1160       RETurn kpress
+1170     END IF
+1180   END REPeat user_action
+1190 END DEFine keypress
+1195 :
+1200 DEFine PROCedure wait_for_a_press (color)
+1210 LOCal x%
+1220 LOCal y%
+1230 LOCal Rkey%
+1240   IF PE THEN
+1250     x% = 0
+1260     y% = 0
+1270     Rkey% = 0
+1280     WM_Rptr #console, 2, x%, y%, Rkey%
+1290     word$ = CHR$(Rkey%)
+1300   ELSE
+1310     REPeat wait_for_inkey
+1320       IF color THEN
+1330         window_size _CUCOL , i
+1340       END IF
+1350       word$ = INKEY$ (#console, 50)
+1360       IF (word$ <> "") THEN
+1370         EXIT wait_for_inkey
+1380       END IF
+1390       IF (Tqueue (#console) = 0) THEN
+1400         IF color THEN
+1410           window_size _BPCOL , i
+1420         END IF
+1430         CURSEN #console
+1440         REPeat loop
+1450           PAUSE 20
+1460           IF Tqueue (#console) THEN
+1470             CURDIS #console
+1480             EXIT loop
+1490           END IF
+1500         END REPeat loop
+1510       END IF
+1520     END REPeat wait_for_inkey
+1530     IF color THEN
+1540       window_size _BPCOL , i
+1550     END IF
+1560   END IF
+1570 END DEFine wait_for_a_press
+1575 :
+1580 DEFine FuNction actions
+1590 LOCal index
+1600   index = 0
+1610   SELect ON act
+1620   ON act = 27 : RETurn 2
+1630   ON act = 32 : index = panel_actions(i)
+1640   ON act = 192 : i = win_dat%(i, 4)
+1650   ON act = 200 : i = win_dat%(i, 5)
+1660   ON act = 208 : i = win_dat%(i, 6)
+1670   ON act = 216 : i = win_dat%(i, 7)
+1680   ON act = 232 : F1_pressed i
+1690   ON act = 244 : CLOSE #console
+1700     console_setup
+1710     console_data channel
+1720   ON act = REMAINDER : index = (CHR$(act) INSTR command$)
+1730     IF index THEN
+1740       index = panel_actions(index)
+1750     END IF
+1760   END SELect
+1770   RETurn index
+1780 END DEFine actions
+1785 :
+1790 DEFine FuNction panel_actions (i)
+1800 LOCal a
+1810   a = 0
+1820   IF (win_dat%(i, 8) = 0) THEN
+1830     IF panel_control%(i) THEN
+1840       panel_control%(i) = 0
+1850       display_window _BPCOL
+1860     ELSE
+1870       panel_control%(i) = 1
+1880       display_window _BPCOL
+1890       SELect ON channel = 1 : a = screen_actions(0) : END SELect
+1900       display_window _BPCOL
+1910     END IF
+1920   ELSE
+1930     SELect ON channel = 1 : check_win 1 : END SELect
+1940     edit_panel
+1950     SELect ON channel = 1 : a = screen_actions(1) : END SELect
+1960   END IF
+1970   RETurn a
+1980 END DEFine panel_actions
+1985 :
+1990 DEFine PROCedure check_win (class)
+2000 END DEFine check_win
+2005 :
+2010 DEFine FuNction screen_actions (class)
+2020   IF (class = 0) THEN
+2030     SELect ON i
+2040     ON i = 3 : RETurn 2
+2050     ON i = 4 : F1_pressed i
+2060     ON i = 6 : IF all_correct THEN
+2070         write_patch
+2080       ELSE
+2090         beep_displeasure
+2100       END IF
+2110       panel_control%(i) = 0
+2120     ON i = 13 : move_front_panel
+2130       panel_control%(i) = 0
+2140     END SELect
+2150   ELSE
+2160     SELect ON i = 1 : show_windows : END SELect
+2170   END IF
+2180   RETurn 0
+2190 END DEFine screen_actions
+2195 :
+2200 DEFine FuNction mouse_click
+2210 LOCal kk%
+2220 LOCal kpress
+2230 LOCal xx%
+2240 LOCal yy%
+2250   xx% = 0
+2260   yy% = 0
+2270   Rkey% = 0
+2280   kk% = 0
+2290   REPeat user_action
+2300     WM_Rptr #console, 11, xx%, yy%, Rkey%
+2310     yy% = (yy% + 1)
+2320     xx% = (xx% + 1)
+2330     i = Fwind (xx%, yy%, panels, win_dat%)
+2340     IF Rkey% THEN
+2350       IF ((Rkey% >= 192) AND (Rkey% <= 216)) THEN
+2360         Rkey% = 0
+2370       END IF
+2380       IF (Rkey% = 1) THEN
+2390         Rkey% = 32
+2400       END IF
+2410       act = Rkey%
+2420     END IF
+2430     IF (i > 0) THEN
+2440       IF ((kk% <> i) AND (kk% <> 0)) THEN
+2450         window_size _BPCOL , kk%
+2460         kk% = 0
+2470       END IF
+2480       IF (kk% = 0) THEN
+2490         window_size _CUCOL , i
+2500         kk% = i
+2510       END IF
+2520       IF Rkey% THEN
+2530         kpress = actions
+2540         display_window _CUCOL
+2550         WM_Sptr #console, (xx% - 1), (yy% - 1)
+2560         IF kpress THEN
+2570           RETurn kpress
+2580         END IF
+2590       END IF
+2600     ELSE
+2610       IF Rkey% THEN
+2620         IF (Rkey% <> 32) THEN
+2630           kpress = actions
+2640           IF kpress THEN
+2650             RETurn kpress
+2660           END IF
+2670         END IF
+2680       END IF
+2690       IF kk% THEN
+2700         window_size _BPCOL , kk%
+2710         kk% = 0
+2720       END IF
+2730     END IF
+2740   END REPeat user_action
+2750 END DEFine mouse_click
+2755 :
+2760 DEFine FuNction pointer_environment
+2770 LOCal x%
+2780 LOCal y%
+2790 LOCal Rkey%
+2800   x% = 0
+2810   y% = 0
+2820   Rkey% = 0
+2830   Q_ERR_ON "wm_rptr"
+2840   WM_Rptr #console, 48, x%, y%, Rkey%
+2850   IF Q_ERR  THEN
+2860     RETurn 0
+2870   ELSE
+2880     RETurn 1
+2890   END IF
+2900 END DEFine pointer_environment
+2905 :
+2910 DEFine PROCedure show_windows
+2920 LOCal i
+2930 LOCal area
+2940   all_correct = 0
+2950   Q_ERR_ON "open"
+2960   OPEN #rpt;win_info$(1)
+2970   IF (Q_ERR  <> 0) THEN
+2980     beep_displeasure
+2990     RETurn
+2995   END IF
+3000   SETPOS #rpt, 44
+3010   WINPUT #rpt, a
+3020   IF ((a < 2) OR (a > 4)) THEN
+3030     beep_displeasure
+3040   ELSE
+3050     all_correct = 1
+3060     area = 0
+3070     SETPOS #rpt, 50
+3080     WINPUT #rpt, a
+3090     win_info$(4) = a
+3100     area = (a * 40)
+3110     SETPOS #rpt, 52
+3120     WINPUT #rpt, a
+3130     win_info$(5) = a
+3140     area = (area + a)
+3150     SETPOS #rpt, 56
+3160     win_info$(3) = unsigned_PEEK_L(rpt)
+3170     SETPOS #rpt, 76
+3180     win_info$(6) = unsigned_PEEK_L(rpt)
+3190     area = ((area + win_info$(3)) + win_info$(6))
+3200     SETPOS #rpt, 80
+3210     BINPUT #rpt, a
+3220     panel_control%(5) = a
+3230     SETPOS #rpt, 81
+3240     BINPUT #rpt, a
+3250     panel_control%(12) = a
+3260     SETPOS #rpt, 88
+3270     BINPUT #rpt, a
+3280     IF (a = 0) THEN
+3290       panel_control%(11) = 1
+3300     ELSE
+3310       panel_control%(11) = 0
+3320     END IF
+3330     SETPOS #rpt, 8
+3340     WINPUT #rpt, a
+3350     win_info$(2) = FILL$(" ", a)
+3360     FOR b = 1 TO a
+3370       BINPUT #rpt, a
+3380       win_info$(2, b) = CHR$(a)
+3390     END FOR b
+3400     FOR i = 2, 5 TO 12
+3410       display_window _BPCOL
+3420     END FOR i
+3430     total_data = (READSETUP (#rpt) - area)
+3440   END IF
+3450   CLOSE #rpt
+3460 END DEFine show_windows
+3465 :
+3470 DEFine PROCedure write_patch
+3480 LOCal area
+3490   Q_ERR_ON "open"
+3500   OPEN #rpt;win_info$(1)
+3510   IF (Q_ERR  <> 0) THEN
+3520     beep_displeasure
+3530     RETurn
+3540   END IF
+3550   IF all_correct THEN
+3560     area = 0
+3570     SETPOS #rpt, 50
+3580     WWRITE #rpt, win_info$(4)
+3590     SETPOS #rpt, 52
+3600     WWRITE #rpt, win_info$(5)
+3610     SETPOS #rpt, 56
+3620     LWRITE #rpt, win_info$(3)
+3630     SETPOS #rpt, 76
+3640     LWRITE #rpt, win_info$(6)
+3650     SETPOS #rpt, 80
+3660     BWRITE #rpt, panel_control%(5)
+3670     SETPOS #rpt, 81
+3680     BWRITE #rpt, panel_control%(12)
+3690     a = panel_control%(11)
+3700     IF (a = 0) THEN
+3710       a = 255
+3720     ELSE
+3730       a = 0
+3740     END IF
+3750     SETPOS #rpt, 88
+3760     BWRITE #rpt, a
+3770     b = LEN(win_info$(2))
+3780     SETPOS #rpt, 8
+3790     WWRITE #rpt, b
+3800     PRINT #rpt;win_info$(2);
+3810     area = (win_info$(4) * 40) + win_info$(5) + win_info$(3) + win_info$(6)
+3820     SETUP #rpt, (total_data + area)
+3830     SETPOS #rpt, 72
+3840     LWRITE #rpt, (total_data + area)
+3845     is_written 1
+3850   END IF
+3860   CLOSE #rpt
+3870 END DEFine write_patch
+3875 :
+3880 DEFine FuNction unsigned_PEEK_L (chan)
+3890 LOCal a
+3900 LOCal b
+3910   WINPUT #chan, a
+3920   WINPUT #chan, b
+3930   RETurn ((65535 * a) + b)
+3940 END DEFine unsigned_PEEK_L
+3945 :
+3950 DEFine PROCedure F1_pressed (err_num)
+3960 LOCal hword$
+3970 LOCal t
+3980   panel_control%(6) = 0
+3990   IF (err_num < 1) THEN
+4000     hword$ = "help"
+4010   ELSE
+4020     hword$ = help_word$(err_num)
+4030   END IF
+4040   Q_ERR_ON "open"
+4050   OPEN #rpt;win_info$(7) & helpfile$
+4060   console_data 2
+4070   IF (Q_ERR  <> 0) THEN
+4080     PRINT #console;"NO HELP AVAILABLE - " & win_info$(7) & helpfile$ & " file not found"
+4090   ELSE
+4100     hword$ = hword$ & ":"
+4110     REPeat find_hword
+4120       IF EOF (#rpt) THEN
+4130         EXIT find_hword
+4140       END IF
+4150       INPUT #rpt;help_line$
+4160       t = (hword$ INSTR help_line$)
+4170       IF t THEN
+4180         EXIT find_hword
+4190       END IF
+4200     END REPeat find_hword
+4210     FOR t = 1 TO 7
+4220       PRINT #console;help_line$
+4230       IF EOF (#rpt) THEN
+4240         EXIT t
+4250       END IF
+4260       INPUT #rpt;help_line$
+4270     END FOR t
+4280     CLOSE #rpt
+4290   END IF
+4300   wait_for_a_press 0
+4310   console_data channel
+4320 END DEFine F1_pressed
+4325 :
+4330 DEFine PROCedure move_front_panel
+4340 LOCal x%
+4350 LOCal y%
+4360 LOCal Rkey%
+4370 LOCal key
+4380   x% = ((wA + 330) / 6)
+4390   y% = ((wD + 13) / 10)
+4400   Rkey% = 0
+4410   IF PE THEN
+4412     x% = 330
+4415     y% = 13
+4417     WM_Sptr #console, x%, y%
+4420     WM_Rptr #console, 129, x%, y%, Rkey%
+4430   ELSE
+4440     OPEN #rpt;"con_512x256a0x0" : WINDOW #rpt, SCRXLIM, SCRYLIM, 0, 0
+4450     REPeat loop
+4460       CURDIS #rpt
+4470       AT #rpt, y%, x%
+4480       CURSEN #rpt
+4490       key = CODE(INKEY$ (#rpt, -1))
+4500       SELect ON key
+4510       ON key = 192 : IF (x% > 0) THEN
+4520           x% = (x% - 1)
+4530         END IF
+4540       ON key = 200 : IF (x% < SCRXLIM DIV 6 - 1) THEN
+4550           x% = (x% + 1)
+4560         END IF
+4570       ON key = 208 : IF (y% > 0) THEN
+4580           y% = (y% - 1)
+4590         END IF
+4600       ON key = 216 : IF (y% < SCRYLIM DIV 10 - 1) THEN
+4610           y% = (y% + 1)
+4620         END IF
+4630       ON key = 10, 32
+4640         EXIT loop
+4650       END SELect
+4660     END REPeat loop
+4670     CLOSE #rpt
+4680     console_clear
+4690     x% = (x% * 6)
+4700     y% = (y% * 10)
+4710   END IF
+4720   wA = (x% - (ww - 34))
+4730   wD = (y% - 13)
+4850   console_onscreen
+4860   CLOSE #console
+4870   console_setup
+4880   console_data channel
+4890   panel_control%(i) = 0
+4900 END DEFine move_front_panel
+4905 :
+4910 DEFine PROCedure console_clear
+4920   IF PE THEN
+4930     RETurn
+4940   END IF
+4950   WINDOW #console, (ww + 4), (wh + 4), wA, wD
+4960   PAPER #console, 0
+4970   CLS #console
+4980 END DEFine console_clear
+4985 :
+4990 DEFine PROCedure edit_panel
+5000 LOCal word$
+5010   is_written 0
+5020   k = win_dat%(i, 8)
+5030   PAPER #console, 0
+5040   CSIZE #console, 0, 0
+5050   window_size _TICOL , i
+5060   PRINT #console;" ";
+5070   word$ = win_info$(k)
+5080   input_edit$ #console, 41+1, word$
+5090   SELect ON k
+5100   ON k = 3 : check_range win_info$(k), word$,  32, 999999, 2 : REMark $$heap
+5110   ON k = 4 : check_range win_info$(k), word$,   3,     99, 1 : REMark $$chan
+5120   ON k = 5 : check_range win_info$(k), word$,   1,  32767, 2 : REMark $$buff
+5130   ON k = 6 : check_range win_info$(k), word$, 128, 524288, 2 : REMark $$stak
+5140   END SELect
+5150   win_info$(k) = stripped_space$((word$))
+5160   display_window _BPCOL
+5170 END DEFine edit_panel
+5175 :
+5180 DEFine PROCedure check_range (exist$, patch$, min, max, incr)
+5190 LOCal value, ping
+5192   value = "0" & patch$
+5194   IF value <= 0 THEN value = "0" & exist$
+5200   ping = (value - (INT((value / incr)) * incr))
+5210   value = value + ping
+5220   IF value < min THEN value = min : ping = 1
+5230   IF value > max THEN value = max : ping = 1
+5240   IF ping THEN beep_displeasure
+5250   patch$ = value
+5260 END DEFine check_range
+5265 :
+5270 DEFine PROCedure beep_displeasure
+5280   BEEP 3000, 1000
+5290 END DEFine beep_displeasure
+5295 :
+5300 DEFine PROCedure window_size (win_colour, i)
+5310   WINDOW #console, win_dat%(i, 0), win_dat%(i, 1), (wA + win_dat%(i, 2)), (wD + win_dat%(i, 3))
+5320   BORDER #console, 1, win_colour
+5330 END DEFine window_size
+5335 :
+5340 DEFine PROCedure display_window (win_colour)
+5350 LOCal papcol
+5360   window_size win_colour, i
+5370   CSIZE #console, win_dat%(i, 9), 0
+5380   IF (win_dat%(i, 8) <> 0) THEN
+5390     PAPER #console, _DICOL
+5400     CLS #console
+5410     PRINT #console;" ";win_info$(win_dat%(i, 8));
+5420   ELSE
+5430     IF panel_control%(i) THEN
+5440       papcol = _SICOL
+5450     ELSE
+5460       papcol = _DICOL
+5470     END IF
+5480     PAPER #console, papcol
+5490     CSIZE #console, win_dat%(i, 9), 0
+5500     CLS #console
+5510     PRINT #console;" ";help_word$(i);
+5520   END IF
+5530 END DEFine display_window
+5535 :
+5540 DEFine PROCedure initialise_qlist_vars
+5550   qlist$ = QLIB_LIST$
+5560   wA = "0" & qlist$(71 TO 74)
+5570   wD = "0" & qlist$(79 TO 82)
+5580   DIM panel_control%(20) : init_control%
+5590   DIM win_info$(8, 41)
+5600   win_info$(7) = stripped_space$(qlist$(41 TO 66))
+5610 END DEFine initialise_qlist_vars
+5615 :
+5620 DEFine FuNction stripped_space$ (word$)
+5630 LOCal a
+5635 LOCal z
+5640   IF word$ = FILL$(" ",LEN(word$)) THEN RETurn ""
+5650   FOR a = 1 TO LEN(word$)
+5652     IF word$(a)<>" " THEN EXIT a
+5656   END FOR a
+5660   FOR z = LEN(word$) TO a STEP -1
+5662     IF word$(z)<>" " THEN EXIT z
+5666   END FOR z
+5670   RETurn word$(a TO z)
+5750 END DEFine stripped_space$
+5755 :
+5760 DATA 13
+5770 DATA  265, 13,  94, 83,  1,  1,  6,  2, 1, 0, "Filename"
+5780 DATA  265, 13,  94, 98,  2,  2,  1,  2, 2, 0, "Job name"
+5790 DATA   60, 13,   4, 13,  3, 13,  3,  4, 0, 1, "QUIT"
+5800 DATA   60, 13,   4, 26,  4, 12,  3,  5, 0, 1, "HELP"
+5810 DATA   60, 13,   4, 52,  5,  7,  4,  6, 0, 1, "Stats"
+5820 DATA   90, 13, 138, 68,  6,  6,  8,  1, 0, 2, "Patch"
+5830 DATA   58, 13,  64, 52,  5,  8,  7,  6, 3, 0, "heap"
+5840 DATA   58, 13, 123, 52,  7,  9,  8,  6, 4, 0, "Channels"
+5850 DATA   58, 13, 182, 52,  8, 10,  9,  6, 5, 0, "Buffer"
+5860 DATA   58, 13, 241, 52,  9, 11, 10,  6, 6, 0, "Stack"
+5870 DATA   60, 13, 300, 52, 10, 11, 12,  6, 0, 1, "Winds"
+5880 DATA   60, 13, 300, 26,  4, 12, 13, 11, 0, 1, "Auto"
+5890 DATA   60, 13, 300, 13,  3, 13, 13, 12, 0, 1, "MOVE"
+5900 DATA 1
+5910 DATA   37, 12, 322, 20,  1,  1,  1,  1, 0, 0, ""
+5920 DATA  364, 138
+5930 DATA "    SPHCBKWA  "
+5940 DATA 4
+5950 DATA 4, 83
+5960 DATA  "Filename"
+5970 DATA   4,  98, "Job name"
+5980 DATA  64,  39, "  Heap    Channels   Buffer    Stack "
+5990 DATA   4, 123, " Press  -  F1 for HELP  -  F4 for REFRESH  -  Esc to QUIT"
+6000 DATA 3
+6010 DATA  300, 20, "HELP"
+6020 DATA   30, 20, "HELP"
+6030 DATA   90,123, "Press  -  Space key to continue"
+6040 DATA 1
+6050 DATA  356, 90,   4, 34,  1,  1,  1,  1, 0, 0, ""
+6060 DATA 4
+6070 DATA   80, 35, "To make the current options default "
+6080 DATA   80, 48, "select Qlib patch load device then SAVE."
+6090 DATA    4, 69, "Load device for Qlib_patch ( Qlib_patch_obj )"
+6100 DATA    4, 95, "Load device for help file  ( Qlib_help      )"
+6110 DATA 4
+6120 DATA   60, 13,   4, 13,  1,  1,  1,  2, 0, 1, "QUIT"
+6130 DATA   60, 13,   4, 26,  2,  2,  1,  3, 0, 1, "SAVE"
+6140 DATA   60, 13, 280, 69,  3,  3,  2,  4, 8, 0, "SAVE"
+6150 DATA   60, 13, 280, 95,  4,  4,  3,  4, 7, 0, "SAVE"
+6160 :
+6170 :
+6180 REMark New in QlibPatch version 3.36 ...
+6190 :
+6200 DEFine PROCedure detect_screen_limits
+6210 LOCal c, get_x, x, get_y, y
+6220   c = FOPEN("CON_") : x = 510 : y = 255
+6230   Q_ERR_ON "WINDOW"
+6240   REPeat get_x
+6250     x = x+2 : WINDOW #c,x,y,0,0
+6260     IF Q_ERR THEN
+6270       x = x-2 : EXIT get_x
+6280     END IF
+6290   END REPeat get_x
+6300   REPeat get_y
+6310     y = y+1 : WINDOW #c,x,y,0,0
+6320     IF Q_ERR THEN
+6330       y = y-1 : EXIT get_y
+6340     END IF
+6350   END REPeat get_y
+6360   Q_ERR_OFF "WINDOW"
+6370   CLOSE #c : SCRXLIM = x : SCRYLIM = y
+6380 END DEFine detect_screen_limits
+6390 :
+6400 DEFine PROCedure console_onscreen
+6410   IF (wA < 0) THEN
+6420     wA = 0
+6430   END IF
+6440   IF (wA > (SCRXLIM - (ww + 8))) THEN
+6450     wA = (SCRXLIM - (ww + 8))
+6460   END IF
+6470   IF (wD < 0) THEN
+6480     wD = 0
+6490   END IF
+6500   IF (wD > (SCRYLIM - (wh + 8))) THEN
+6510     wD = (SCRYLIM - (wh + 8))
+6520   END IF
+6530 END DEFine console_onscreen
+6540 :
+6550 DEFine PROCedure init_control%
+6560 LOCal i
+6570   FOR i =  7 TO 12
+6580     panel_control%(i) = "0" & qlist$(i+83)
+6590   END FOR i
+6600   FOR i = 16 TO 17
+6610     panel_control%(i) = "0" & qlist$(i+80)
+6620   END FOR i
+6630   panel_control%(13)  = "0" & qlist$(98)
+6640 END DEFine init_control%
+6650 :
+6660 DEFine PROCedure do_qlib_use
+6670   FOR i = 7 TO 12
+6680     qlist$((i + 83)) = panel_control%(i)
+6690   END FOR i
+6700   FOR i = 16 TO 17
+6710     qlist$((i + 80)) = panel_control%(i)
+6720   END FOR i
+6730   qlist$(98) = panel_control%(13)
+6740   IF  wA > 140  OR  wD > 255
+6750     x = wA : IF x > 140 : x = 140 : REMark assumes ww = 512   - 372 = 140
+6760     y = wD : IF y > 255 : y = 255 : REMark assumes wh = 256
+6770     QLIB_USE , , x, y, qlist$(90 TO 99) : REMark closest possible
+6780   END IF
+6790   Q_ERR_ON "QLIB_USE" : REMark avoid error message outside 512x256
+6800   QLIB_USE , , wA, wD, qlist$(90 TO 99)
+6810   Q_ERR_OFF "QLIB_USE"
+6820 END DEFine do_qlib_use
+6830 :
+6840 DEFine PROCedure is_written(patched)
+6850 LOCal c
+6860   c = FOPEN("CON_") : WINDOW #c, 60, 10, wA+238, wD+70
+6870   PAPER #c, _BPCOL : INK #c, _TICOL
+6880   IF patched THEN
+6890     REMark flash the Patch panel
+6900     OVER #console, -1
+6910     AT #console, 0, 0 : PRINT #console, " Patch"
+6915     CLS #c
+6920     PAUSE #console, 15
+6930     AT #console, 0, 0 : PRINT #console, " Patch"
+6940     OVER #console, 0
+6950     PRINT #c," Written "
+6960   ELSE
+6970     CLS #c
+6980   END IF
+6990   CLOSE #c
+7000 END DEFine is_written

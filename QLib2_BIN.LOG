@@ -1,0 +1,7 @@
+12 Procedures
+INITgen, GENop, GENB, GENW, GENL, GENint, GENfloat, GENsfloat, GENstring, GENtext, GENntd, SMEM, 
+
+3 Functions
+RP_ADDR, ODD, SHORTF, 
+
+REMark $$asmb=dos3_QLib2_BIN,0,14
