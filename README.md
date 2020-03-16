@@ -2,6 +2,8 @@
 
 QLiberator is a SuperBASIC compiler for the Sinclair QL and derivatives.
 
+Follow the thread on QLForum here: https://qlforum.co.uk/viewtopic.php?f=3&t=3166.
+
 After 27 years we now have an update to Q_Liberator. The last version was v3.36. There are 4 main additions with this latest v3.37 update:
 
 + Now able to move QLIB’s front panel around outside of the previous 512x256 limit.
